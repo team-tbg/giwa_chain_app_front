@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh api *)",
+      "Bash(git ls-remote *)",
+      "WebFetch(domain:giwa.io)",
+      "WebFetch(domain:docs.giwa.io)",
+      "WebFetch(domain:www.unifi.me)",
+      "WebFetch(domain:docs.google.com)",
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "Read(//c/Users/simba/Downloads/Telegram Desktop/**)",
+      "Skill(artifact-design)",
+      "Skill(artifact-design:*)",
+      "Bash(npm -v)",
+      "Bash(npx -v)",
+      "Bash(npx --yes create-expo-app@latest naduri-app --template blank-typescript --no-install)",
+      "Bash(npm pkg *)",
+      "Bash(npx --yes expo install @react-navigation/native @react-navigation/native-stack @react-navigation/bottom-tabs react-native-screens react-native-safe-area-context expo-sensors)",
+      "Bash(npx tsc *)",
+      "Bash(npx expo *)",
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(Object.keys\\(p.dependencies\\).join\\('\\\\n'\\)\\)\")",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);console.log\\('name:',j.name,'| slug:',j.slug,'| ui:',j.userInterfaceStyle,'| scheme:',j.scheme,'| android.package:',j.android&&j.android.package\\)}\\)\")",
+      "Bash(npx --yes expo install react-dom react-native-web)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);console.log\\('VALID · additionalContext len:', j.hookSpecificOutput.additionalContext.length\\)}\\)\")",
+      "Bash(node -e ' *)",
+      "Bash(node -e 'const s=require\\(\"C:/workspace/giwa_chain_app_front/.claude/settings.json\"\\);const c=s.hooks.UserPromptSubmit[0].hooks[0].command;const {execSync}=require\\(\"child_process\"\\);const out=execSync\\(c,{shell:\"bash\"}\\).toString\\(\\);const j=JSON.parse\\(out\\);console.log\\(\"settings.json OK · hook emits valid JSON · inject len:\",j.hookSpecificOutput.additionalContext.length\\)')",
+      "PowerShell(cmd /c $c)",
+      "PowerShell(& \"C:\\\\Users\\\\simba\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\emulator\\\\emulator.exe\" -list-avds)",
+      "PowerShell($c = 'echo no | \"C:\\\\Users\\\\simba\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\cmdline-tools\\\\latest\\\\bin\\\\avdmanager.bat\" create avd -n naduri -k \"system-images;android-36;google_apis_playstore;x86_64\" --force')",
+      "Bash(grep -v -E '^\\(\\\\.|\\\\.\\\\.|\\\\.git|node_modules\\)$')",
+      "Bash(git add *)"
+    ]
+  }
+}

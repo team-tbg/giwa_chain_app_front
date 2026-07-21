@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "나드리",
+    "slug": "naduri-app",
+    "scheme": "naduri",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0F1613",
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "io.giwa.naduri",
+      "adaptiveIcon": {
+        "backgroundColor": "#0F1613",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
