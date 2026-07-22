@@ -31,7 +31,10 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
+.env.local
 .env*.local
+# (.env.example 은 커밋함 — 위 패턴에 안 걸림)
 
 # typescript
 *.tsbuildinfo
