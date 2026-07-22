@@ -80,6 +80,7 @@ type AppActions = {
   logout: () => void;
   reset: () => void;
 
+  setSteps: (n: number) => void; // 측정된 걸음수 반영(프론트 관리, DB 저장 안 함)
   claimSteps: () => void; // 걸어서 받을 포인트를 받기
   stakePoints: (amt: number) => void; // 포인트 저금
   unstakePoints: () => void; // 포인트 저금 그만 (원금+이자 → points)
@@ -140,6 +141,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, user: null }));
   }, []);
   const reset = useCallback(() => setState(initial), []);
+
+  const setSteps = useCallback((n: number) => {
+    setState((s) => (n === s.steps ? s : { ...s, steps: n }));
+  }, []);
 
   const claimSteps = useCallback(() => {
     setState((s) => {
@@ -261,11 +266,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(
     () => ({
-      ...state, login, logout, reset, claimSteps, stakePoints, unstakePoints,
+      ...state, login, logout, reset, setSteps, claimSteps, stakePoints, unstakePoints,
       depositCash, withdrawCash, stakeCash, unstakeCash, pointsToCash, buyAsset, sellAsset, tickGrowth, redeemReferral,
       checkAttendance, claimBonus, answerQuiz, togglePush,
     }),
-    [state, login, logout, reset, claimSteps, stakePoints, unstakePoints,
+    [state, login, logout, reset, setSteps, claimSteps, stakePoints, unstakePoints,
       depositCash, withdrawCash, stakeCash, unstakeCash, pointsToCash, buyAsset, sellAsset, tickGrowth, redeemReferral,
       checkAttendance, claimBonus, answerQuiz, togglePush],
   );

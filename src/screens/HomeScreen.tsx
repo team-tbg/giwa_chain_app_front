@@ -3,7 +3,7 @@
  * 구성: 상단바 · 걸음 링 · 걸어서 받을 포인트 · 오늘 모은 포인트 · 자산 스트립 · 퀵 메뉴 · 불리기 배너.
  * 규칙: 퍼센트·풀 노출 금지. 포인트(P)/원 표기. 미구현 화면은 정직하게 "준비 중" 안내.
  */
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { notify } from '../lib/alert';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -28,10 +28,15 @@ const soon = (label: string) =>
 
 export function HomeScreen({ navigation }: Props) {
   const s = useAppState();
-  const { user, goal, streak, points, todayEarned, cash, claimSteps } = s;
+  const { user, goal, streak, points, todayEarned, cash, claimSteps, setSteps } = s;
   const ped = usePedometer();
   const loc = useLocation();
   const weather = useWeather(loc.coords);
+
+  // 걸음수는 프론트(센서)에서 관리 — 측정되면 앱 상태에 반영(DB 저장 안 함).
+  useEffect(() => {
+    if (ped.available && ped.todaySteps > 0) setSteps(ped.todaySteps);
+  }, [ped.available, ped.todaySteps, setSteps]);
 
   // 위치 상태를 분명히 표시 — GPS로 잡힌 동네인지 폴백인지 구분되게
   const regionText =
@@ -41,8 +46,8 @@ export function HomeScreen({ navigation }: Props) {
       : '위치 꺼짐';
   const tempText = weather.tempC != null ? `${weather.tempC.toFixed(1)}°` : '--°';
 
-  // 실기기에서 센서가 잡히면 실제 걸음, 아니면 데모용 목업.
-  const steps = ped.available && ped.todaySteps > 0 ? ped.todaySteps : s.steps;
+  // 단일 소스: 앱 상태의 걸음수(측정값 동기화됨). 센서 없으면 데모 기본값.
+  const steps = s.steps;
   const prog = useMemo(() => Math.min(1, steps / goal), [steps, goal]);
   const kcal = Math.round(steps * 0.0687);
   const km = (steps * 0.00064).toFixed(1);
@@ -94,6 +99,11 @@ export function HomeScreen({ navigation }: Props) {
             <Text style={styles.statLab}>걸은 거리</Text>
           </View>
         </View>
+        {__DEV__ && !ped.available && (
+          <Pressable style={styles.devSteps} onPress={() => setSteps(steps + 137)}>
+            <Text style={styles.devStepsTxt}>🔧 (개발·웹) 걸음 +137 — 센서 없는 환경에서 동적 확인용</Text>
+          </Pressable>
+        )}
       </View>
 
       {/* 걸어서 받을 포인트 */}
@@ -211,6 +221,8 @@ const styles = StyleSheet.create({
   statNum: { fontSize: 17, fontWeight: '900', color: colors.ink },
   statUnit: { fontSize: 12, fontWeight: '700', color: colors.muted },
   statLab: { fontSize: 11, fontWeight: '600', color: colors.muted, marginTop: 2 },
+  devSteps: { marginTop: 12, alignSelf: 'stretch', backgroundColor: colors.surface2, borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
+  devStepsTxt: { fontSize: 11.5, fontWeight: '700', color: colors.muted },
 
   claim: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10,
