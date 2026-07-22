@@ -4,7 +4,10 @@
  */
 import Constants from 'expo-constants';
 
-const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string | undefined>;
+const extra = (Constants.expoConfig?.extra
+  ?? (Constants as { manifest?: { extra?: Record<string, string> } }).manifest?.extra
+  ?? (Constants as { manifest2?: { extra?: { expoClient?: { extra?: Record<string, string> } } } }).manifest2?.extra?.expoClient?.extra
+  ?? {}) as Record<string, string | undefined>;
 
 const env = process.env as Record<string, string | undefined>;
 const pick = (envKey: string, extraKey: string) => env[envKey] || extra[extraKey] || '';
@@ -18,9 +21,6 @@ export const GOOGLE = {
   androidClientId: pick('EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID', 'googleAndroidClientId'),
   iosClientId: pick('EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID', 'googleIosClientId'),
 };
-
-/** 토스 로그인 클라이언트 키 */
-export const TOSS_CLIENT_KEY = pick('EXPO_PUBLIC_TOSS_CLIENT_KEY', 'tossClientKey');
 
 export const isApiConfigured = () => API_BASE_URL.length > 0;
 export const isGoogleConfigured = () =>

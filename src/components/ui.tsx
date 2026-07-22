@@ -155,8 +155,39 @@ export function ProgressRing({
   );
 }
 
+/**
+ * "?" 도움말 — 웹은 마우스 올리면(hover), 모바일은 누르면 설명 말풍선이 뜬다. (v10 qm)
+ */
+export function QMark({ tip, openLeft }: { tip: string; openLeft?: boolean }) {
+  const [show, setShow] = React.useState(false);
+  return (
+    <View style={styles.qmarkWrap}>
+      <Pressable
+        onPress={() => setShow((v) => !v)}
+        onHoverIn={() => setShow(true)}
+        onHoverOut={() => setShow(false)}
+        style={styles.qmark}
+      >
+        <Text style={styles.qmarkTxt}>?</Text>
+      </Pressable>
+      {show && (
+        <View style={[styles.qtip, openLeft ? styles.qtipLeft : styles.qtipRight]}>
+          <Text style={styles.qtipTxt}>{tip}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   ringCenter: { alignItems: 'center', justifyContent: 'center' },
+  qmarkWrap: { position: 'relative' },
+  qmark: { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  qmarkTxt: { color: '#fff', fontSize: 11, fontWeight: '900' },
+  qtip: { position: 'absolute', bottom: 26, width: 240, backgroundColor: '#16202E', borderRadius: 14, padding: 14, zIndex: 100 },
+  qtipRight: { left: -4 },
+  qtipLeft: { right: -4 },
+  qtipTxt: { color: '#fff', fontSize: 12, fontWeight: '600', lineHeight: 18 },
   btn: {
     borderRadius: radii.md,
     alignItems: 'center',

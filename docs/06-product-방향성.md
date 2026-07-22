@@ -54,7 +54,7 @@
 
 전환의 심장은 여전히 **원화 예치(원금 전환)** — 이자받기·포인트샵 흐름에서 원화 입금(DepositScreen, 원금 비보장 고지)으로 이어진다.
 
-> 기준 프로토타입: [prototype/naduri_v10.html](./prototype/naduri_v10.html) (구버전 [naduri-prototype.html](./prototype/naduri-prototype.html)) · 앱은 **온보딩=로그인(구글·토스 계속하기 + 추천인 코드, 이메일 제외)** → 6탭
+> 기준 프로토타입: [prototype/naduri_v10.html](./prototype/naduri_v10.html) (구버전 [naduri-prototype.html](./prototype/naduri-prototype.html)) · 앱은 **온보딩=로그인(구글 계속하기 + 추천인 코드, 이메일 제외)** → 6탭 (2차 소셜은 검토 중 — 카카오는 가상자산 제한 정책으로 제외)
 
 ---
 

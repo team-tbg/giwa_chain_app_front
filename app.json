@@ -26,14 +26,19 @@
     },
     "plugins": [
       "expo-web-browser",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "걸은 거리와 동네를 보여드리기 위해 위치를 사용해요."
+        }
+      ]
     ],
     "extra": {
       "apiBaseUrl": "https://api.stg.naduri.app/v1",
-      "googleWebClientId": "",
-      "googleAndroidClientId": "",
-      "googleIosClientId": "",
-      "tossClientKey": ""
+      "googleWebClientId": "562062096700-g0fthuqs2fdn8o7aaabesrei5pk2cvki.apps.googleusercontent.com",
+      "googleAndroidClientId": "562062096700-ue5dcnii8k3dekga0bo5qoea32nufjfu.apps.googleusercontent.com",
+      "googleIosClientId": ""
     }
   }
 }

@@ -33,7 +33,7 @@ src/
   navigation/               RootNavigator, MainTabs, types
   screens/
     OnboardingScreen        0. 온보딩(무해한 입장)
-    LoginScreen             로그인(SNS 간편 — 구글/토스)
+    OnboardingScreen        온보딩=로그인(SNS 간편 — 구글) + 추천인 코드
     HomeScreen              1. 홈 · 걷기/적립 (탭)
     BoostTabScreen          불리기 탭
     ProfileScreen           내 정보 탭(계정·설정·로그아웃)

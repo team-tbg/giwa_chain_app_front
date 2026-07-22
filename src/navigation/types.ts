@@ -15,6 +15,10 @@ export type RootStackParamList = {
   Onboarding: undefined;
   Main: NavigatorScreenParams<MainTabParamList> | undefined;
   Deposit: undefined; // 원화 입금
+  Grow: undefined; // 이자 현황(저금 대시보드)
+  Attendance: undefined; // 출석체크
+  Bonus: undefined; // 오늘의 보너스
+  Quiz: undefined; // OX 금융퀴즈
 };
 
 declare global {

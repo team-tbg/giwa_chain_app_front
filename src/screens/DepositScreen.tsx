@@ -4,7 +4,8 @@
  * (v10에 없는 리스크 박스/수익 예시는 넣지 않는다. 원금 손실 고지는 v10처럼 변동 자산 구매 시점에.)
  */
 import React, { useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { toast } from '../lib/alert';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Screen } from '../components/Screen';
 import { Button } from '../components/ui';
@@ -38,7 +39,7 @@ export function DepositScreen({ navigation }: Props) {
     setPayOpen(false);
     depositCash(amount);
     navigation.navigate('Main', { screen: 'Interest' });
-    Alert.alert('입금 완료', `${method}으로 ${won(amount)}원을 입금했어요. 이자받기에서 저금하면 이자가 붙어요.`);
+    toast(`${method}으로 ${won(amount)}원 입금 완료 🎉`);
   };
 
   return (

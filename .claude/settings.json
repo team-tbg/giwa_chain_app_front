@@ -28,7 +28,14 @@
       "Skill(update-config)",
       "Skill(update-config:*)",
       "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('.claude/settings.json','utf8'\\)\\); console.log\\('settings.json OK'\\)\")",
-      "Bash(node -e \"const c=require\\('fs'\\).readFileSync\\('.claude/settings.json','utf8'\\); const m=c.match\\(/echo \\\\\"\\(.*\\)\\\\\"\\\\,/\\); \")"
+      "Bash(node -e \"const c=require\\('fs'\\).readFileSync\\('.claude/settings.json','utf8'\\); const m=c.match\\(/echo \\\\\"\\(.*\\)\\\\\"\\\\,/\\); \")",
+      "PowerShell(New-Item -ItemType Directory -Force \"$env:USERPROFILE\\\\.android\" | Out-Null; keytool -genkeypair -v -keystore \"$env:USERPROFILE\\\\.android\\\\debug.keystore\" -storepass android -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname \"CN=Android Debug,O=Android,C=US\"; keytool -list -v -keystore \"$env:USERPROFILE\\\\.android\\\\debug.keystore\" -alias androiddebugkey -storepass android -keypass android)",
+      "Bash(node --check mock-server/index.js)",
+      "WebFetch(domain:developers.kakao.com)",
+      "WebFetch(domain:developers.naver.com)",
+      "Bash(git check-ignore *)",
+      "Bash(git commit -m ' *)",
+      "Bash(grep -E \"\\(^|/\\)\\\\.env$|node_modules\")"
     ]
   },
   "hooks": {

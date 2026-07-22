@@ -3,7 +3,8 @@
  * 규칙: 출금은 원탭·진짜 열림 · 시드/개인키는 "고급 설정"에만.
  */
 import React from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { notify } from '../lib/alert';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
@@ -13,7 +14,6 @@ import { useAppState, won, fmtP, fmtd, PRICE, pTotal, cTotal, netWorth } from '.
 import type { MainTabParamList, RootStackParamList } from '../navigation/types';
 
 const ADDR = '0x7A3f9B21C4dE8f0a45B7c9E1D2380Fa6b19C4E27';
-const UPID = 'naduri7.up';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Wallet'>,
@@ -22,7 +22,8 @@ type Props = CompositeScreenProps<
 
 export function WalletScreen({ navigation }: Props) {
   const s = useAppState();
-  const { points, cash, hold, withdrawCash, sellAsset } = s;
+  const { points, cash, hold, history, withdrawCash, sellAsset } = s;
+  const hhmm = (at: number) => new Date(at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
 
   const total = netWorth(s) || 1;
   const parts = [
@@ -34,15 +35,15 @@ export function WalletScreen({ navigation }: Props) {
   ];
 
   const withdraw = () => {
-    if (cash <= 0) return Alert.alert('출금할 돈이 없어요', '이자 안 받고 있는 원화 자산이 없어요.');
+    if (cash <= 0) return notify('출금할 돈이 없어요', '이자 안 받고 있는 원화 자산이 없어요.');
     withdrawCash(cash);
-    Alert.alert('보냈어요', `내 계좌로 ${won(cash)}원을 보내드렸어요. 영업일 기준 1~3일 걸려요.`);
+    notify('보냈어요', `내 계좌로 ${won(cash)}원을 보내드렸어요. 영업일 기준 1~3일 걸려요.`);
   };
   const sell = (kind: 'btc' | 'gold', name: string) => {
-    if (hold[kind] <= 0) return Alert.alert('출금할 자산이 없어요', `보유한 ${name}가 없어요.`);
+    if (hold[kind] <= 0) return notify('출금할 자산이 없어요', `보유한 ${name}가 없어요.`);
     const v = hold[kind] * PRICE[kind];
     sellAsset(kind);
-    Alert.alert('원화로 바꿨어요', `${name}를 팔아 ${won(v)}원이 원화 자산에 들어왔어요.`);
+    notify('원화로 바꿨어요', `${name}를 팔아 ${won(v)}원이 원화 자산에 들어왔어요.`);
   };
 
   return (
@@ -59,6 +60,13 @@ export function WalletScreen({ navigation }: Props) {
           ))}
         </View>
       </View>
+
+      {/* 쿠폰함 */}
+      <Text style={styles.sect}>쿠폰함</Text>
+      <Pressable style={styles.couponEmpty} onPress={() => navigation.navigate('Main', { screen: 'Shop' })}>
+        <Text style={styles.couponEmptyT}>아직 쿠폰이 없어요</Text>
+        <Text style={styles.couponEmptyLink}>포인트샵에서 쿠폰으로 바꿔보세요 ›</Text>
+      </Pressable>
 
       {/* 보유 자산 */}
       <Text style={styles.sect}>보유 자산</Text>
@@ -91,15 +99,37 @@ export function WalletScreen({ navigation }: Props) {
       {/* 지갑 주소 */}
       <Text style={styles.sect}>내 지갑 주소</Text>
       <View style={styles.addrCard}>
-        <View style={styles.addrRow}><Text style={styles.addrK}>이름</Text><Text style={styles.mono}>{UPID}</Text></View>
         <View style={styles.addrRow}><Text style={styles.addrK}>주소</Text><Text style={styles.mono}>{ADDR.slice(0, 6)}...{ADDR.slice(-4)}</Text></View>
         <View style={styles.addrRow}><Text style={styles.addrK}>네트워크</Text><View style={styles.netChip}><Text style={styles.netChipTxt}>GIWA</Text></View></View>
         <View style={styles.addrBtns}>
-          <WBtn label="주소 복사하기" onPress={() => Alert.alert('복사했어요', '지갑 주소를 복사했어요.')} full />
-          <WBtn label="고급 설정" onPress={() => Alert.alert('고급 설정', '개인키·복구 구문은 안전하게 보관하세요. (준비 중)')} full />
+          <WBtn label="주소 보기" onPress={() => notify('지갑 주소', `${ADDR}\n\n(길게 눌러 복사하세요. 복사 기능은 준비 중이에요.)`)} full />
+          <WBtn label="고급 설정" onPress={() => notify('준비 중이에요', '개인키·복구 구문 보기는 곧 열려요.')} full />
         </View>
       </View>
       <Text style={styles.note}>주소는 남에게 알려줘도 안전해요. 다만 로그인 정보는 누구에게도 알려주지 마세요.</Text>
+
+      {/* 최근 내역 */}
+      <Text style={styles.sect}>최근 내역</Text>
+      {history.length === 0 ? (
+        <Text style={styles.emptyHist}>아직 내역이 없어요. 걷고 모으면 여기에 쌓여요.</Text>
+      ) : (
+        history.slice(0, 10).map((e) => {
+          const up = e.amount > 0;
+          const val = e.unit === 'P' ? `${up ? '+' : ''}${fmtP(e.amount)}P` : `${up ? '+' : ''}${won(e.amount)}원`;
+          return (
+            <View key={e.id} style={styles.hrow}>
+              <View style={[styles.hIc, { backgroundColor: up ? colors.rewardSoft : '#FDECEC' }]}>
+                <Text style={[styles.hIcTxt, { color: up ? colors.rewardDeep : colors.red }]}>{up ? '＋' : '－'}</Text>
+              </View>
+              <View style={styles.flex1}>
+                <Text style={styles.hWhy}>{e.why}</Text>
+                <Text style={styles.hAt}>{hhmm(e.at)}</Text>
+              </View>
+              <Text style={[styles.hVal, { color: up ? colors.rewardDeep : colors.ink }]}>{val}</Text>
+            </View>
+          );
+        })
+      )}
     </Screen>
   );
 }
@@ -142,4 +172,16 @@ const styles = StyleSheet.create({
   wbtn: { backgroundColor: colors.surface2, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center' },
   wbtnTxt: { fontSize: 13.5, fontWeight: '800', color: colors.ink },
   note: { fontSize: 12, fontWeight: '600', color: colors.muted, marginTop: 12, lineHeight: 18 },
+
+  couponEmpty: { backgroundColor: colors.surface, borderRadius: 18, paddingVertical: 22, alignItems: 'center', ...cardShadow },
+  couponEmptyT: { fontSize: 13.5, fontWeight: '700', color: colors.muted },
+  couponEmptyLink: { fontSize: 14, fontWeight: '800', color: colors.primary, marginTop: 10 },
+
+  emptyHist: { fontSize: 13, fontWeight: '600', color: colors.muted, textAlign: 'center', paddingVertical: 18 },
+  hrow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface, borderRadius: 16, padding: 13, marginBottom: 7, ...cardShadow },
+  hIc: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  hIcTxt: { fontSize: 15, fontWeight: '900' },
+  hWhy: { fontSize: 14, fontWeight: '800', color: colors.ink },
+  hAt: { fontSize: 11.5, fontWeight: '600', color: colors.muted, marginTop: 2 },
+  hVal: { fontSize: 15, fontWeight: '900' },
 });

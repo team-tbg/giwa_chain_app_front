@@ -1,11 +1,12 @@
 /**
  * 온보딩 = 진입/로그인 (v10 onboard 그대로).
- * "열린 금융을 향한 발걸음 · 나드리" + 구글/토스 계속하기 + 추천인 코드.
- * (v10의 "이메일로 계속하기"는 요청에 따라 제외)
- * 구글: expo-auth-session id_token → 서버 /auth/social(docs/11 §1). 토스: SDK/키 필요.
+ * "열린 금융을 향한 발걸음 · 나드리" + 구글 계속하기 + 추천인 코드.
+ * (v10의 "이메일로 계속하기"는 제외. 2차 소셜은 검토 중 — 카카오는 가상자산 제한 정책으로 제외.)
+ * 구글: expo-auth-session id_token → 서버 /auth/social(docs/11 §1).
  */
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { notify } from '../lib/alert';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Screen } from '../components/Screen';
 import { colors, radii, typography } from '../theme/theme';
@@ -29,16 +30,12 @@ export function OnboardingScreen({ navigation }: Props) {
     if (busy) return;
     try {
       setBusy(provider);
-      if (provider === 'toss') {
-        Alert.alert('토스 로그인 준비 중', '토스 로그인 SDK·키 연동이 필요해요. 지금은 구글로 시작할 수 있어요.');
-        return;
-      }
       if (!isApiConfigured()) {
-        Alert.alert('서버 설정 필요', '백엔드 API 주소(EXPO_PUBLIC_API_BASE_URL)를 설정해 주세요.');
+        notify('서버 설정 필요', '백엔드 API 주소(EXPO_PUBLIC_API_BASE_URL)를 설정해 주세요.');
         return;
       }
       if (!isGoogleConfigured() || !google.ready) {
-        Alert.alert('구글 로그인 설정 필요', '구글 OAuth 클라이언트 ID를 설정해 주세요.');
+        notify('구글 로그인 설정 필요', '구글 OAuth 클라이언트 ID를 설정해 주세요.');
         return;
       }
       const idToken = await google.signIn();
@@ -48,7 +45,7 @@ export function OnboardingScreen({ navigation }: Props) {
       navigation.replace('Main');
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : '로그인 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.';
-      Alert.alert('로그인 실패', msg);
+      notify('로그인 실패', msg);
     } finally {
       setBusy(null);
     }
@@ -56,17 +53,17 @@ export function OnboardingScreen({ navigation }: Props) {
 
   const registerCode = () => {
     if (refUsed) {
-      Alert.alert('이미 추천인 코드를 넣었어요', '한 계정에 한 번만 넣을 수 있어요.');
+      notify('이미 추천인 코드를 넣었어요', '한 계정에 한 번만 넣을 수 있어요.');
       return;
     }
     if (code.trim().length < 4) {
-      Alert.alert('코드를 정확히 입력해주세요');
+      notify('코드를 정확히 입력해주세요');
       return;
     }
     redeemReferral(code);
     setRefOpen(false);
     setCode('');
-    Alert.alert('추천인 코드를 등록했어요', '+500P를 받았어요. 첫 걸음을 적립하면 양쪽 모두에게 지급돼요.');
+    notify('추천인 코드를 등록했어요', '+500P를 받았어요. 첫 걸음을 적립하면 양쪽 모두에게 지급돼요.');
   };
 
   return (
@@ -88,21 +85,6 @@ export function OnboardingScreen({ navigation }: Props) {
             <>
               <View style={styles.gBadge}><Text style={styles.gLetter}>G</Text></View>
               <Text style={styles.obLabel}>구글로 계속하기</Text>
-            </>
-          )}
-        </Pressable>
-
-        <Pressable
-          disabled={busy !== null}
-          onPress={() => start('toss')}
-          style={({ pressed }) => [styles.obBtn, styles.toss, pressed && styles.pressed, busy && styles.dim]}
-        >
-          {busy === 'toss' ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <View style={styles.tBadge}><Text style={styles.tLetter}>t</Text></View>
-              <Text style={[styles.obLabel, styles.tossLabel]}>toss로 계속하기</Text>
             </>
           )}
         </Pressable>
@@ -169,10 +151,6 @@ const styles = StyleSheet.create({
   obLabel: { fontSize: 15, fontWeight: '800', color: colors.ink },
   gBadge: { width: 20, height: 20, borderRadius: 6, backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' },
   gLetter: { fontSize: 12, fontWeight: '900', color: '#4285F4' },
-  toss: { backgroundColor: '#0064FF', borderColor: '#0064FF' },
-  tossLabel: { color: '#fff' },
-  tBadge: { width: 20, height: 20, borderRadius: 6, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  tLetter: { fontSize: 13, fontWeight: '900', color: '#0064FF' },
 
   linkb: { alignItems: 'center', paddingVertical: 10 },
   linkText: { fontSize: 13.5, fontWeight: '700', color: colors.muted, textDecorationLine: 'underline' },

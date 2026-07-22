@@ -4,7 +4,8 @@
  * 규칙: 퍼센트·풀 노출 금지. 포인트(P)/원 표기. 미구현 화면은 정직하게 "준비 중" 안내.
  */
 import React, { useMemo } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { notify } from '../lib/alert';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
@@ -13,6 +14,8 @@ import { ProgressRing } from '../components/ui';
 import { colors, radii, cardShadow } from '../theme/theme';
 import { DAILY_CAP, useAppState, won, fmtP, claimableP, pTotal, cTotal } from '../state/AppState';
 import { usePedometer } from '../hooks/usePedometer';
+import { useLocation } from '../hooks/useLocation';
+import { useWeather } from '../hooks/useWeather';
 import type { MainTabParamList, RootStackParamList } from '../navigation/types';
 
 type Props = CompositeScreenProps<
@@ -21,12 +24,22 @@ type Props = CompositeScreenProps<
 >;
 
 const soon = (label: string) =>
-  Alert.alert(label, '곧 만나요. 지금은 걷고 모으고 불리는 것부터 시작해요.');
+  notify(label, '곧 만나요. 지금은 걷고 모으고 불리는 것부터 시작해요.');
 
 export function HomeScreen({ navigation }: Props) {
   const s = useAppState();
   const { user, goal, streak, points, todayEarned, cash, claimSteps } = s;
   const ped = usePedometer();
+  const loc = useLocation();
+  const weather = useWeather(loc.coords);
+
+  // 위치 상태를 분명히 표시 — GPS로 잡힌 동네인지 폴백인지 구분되게
+  const regionText =
+    loc.status === 'checking' ? '동네 확인 중…'
+      : loc.region ? loc.region
+      : loc.status === 'granted' ? '동네 미확인(GPS)'
+      : '위치 꺼짐';
+  const tempText = weather.tempC != null ? `${weather.tempC.toFixed(1)}°` : '--°';
 
   // 실기기에서 센서가 잡히면 실제 걸음, 아니면 데모용 목업.
   const steps = ped.available && ped.todaySteps > 0 ? ped.todaySteps : s.steps;
@@ -61,7 +74,7 @@ export function HomeScreen({ navigation }: Props) {
         <Pressable style={styles.chip} onPress={() => navigation.navigate('Benefit')}>
           <Text style={styles.chipTxt}>🔥 {streak}일 연속 걷는 중</Text>
         </Pressable>
-        <Text style={styles.weather}>☀️ 서울 송파구 · 25.6°</Text>
+        <Text style={styles.weather}>{weather.emoji} {regionText} · {tempText}</Text>
       </View>
 
       {/* 걸음 링 */}
@@ -125,14 +138,14 @@ export function HomeScreen({ navigation }: Props) {
 
       {/* 퀵 메뉴 */}
       <View style={styles.quickRow}>
-        <QuickBtn emoji="📅" bg={colors.primarySoft} label="출석체크" dot onPress={() => navigation.navigate('Benefit')} />
-        <QuickBtn emoji="💰" bg={colors.goldSoft} label="보너스" dot onPress={() => navigation.navigate('Benefit')} />
-        <QuickBtn emoji="🧠" bg="#FDECEC" label="OX퀴즈" dot onPress={() => navigation.navigate('Benefit')} />
-        <QuickBtn emoji="🎁" bg="#F0E8FE" label="뽑기" onPress={() => navigation.navigate('Benefit')} />
+        <QuickBtn emoji="📅" bg={colors.primarySoft} label="출석체크" dot onPress={() => navigation.navigate('Attendance')} />
+        <QuickBtn emoji="💰" bg={colors.goldSoft} label="보너스" dot onPress={() => navigation.navigate('Bonus')} />
+        <QuickBtn emoji="🧠" bg="#FDECEC" label="OX퀴즈" dot onPress={() => navigation.navigate('Quiz')} />
+        <QuickBtn emoji="🎁" bg="#F0E8FE" label="뽑기" onPress={() => soon('나드리 뽑기')} />
       </View>
       <View style={styles.quickWide}>
-        <QuickWide emoji="🎮" bg={colors.rewardSoft} label="게임하고 받기" onPress={() => navigation.navigate('Benefit')} />
-        <QuickWide emoji="📺" bg="#FDECEC" label="영상 보고 받기" onPress={() => navigation.navigate('Benefit')} />
+        <QuickWide emoji="🎮" bg={colors.rewardSoft} label="게임하고 받기" onPress={() => soon('게임하고 받기')} />
+        <QuickWide emoji="📺" bg="#FDECEC" label="영상 보고 받기" onPress={() => soon('영상 보고 받기')} />
       </View>
 
       {/* 불리기 배너 */}

@@ -7,7 +7,7 @@ import { Platform } from 'react-native';
 import { api } from './client';
 import { tokenStore } from './tokenStore';
 
-export type Provider = 'google' | 'toss';
+export type Provider = 'google';
 
 export type ApiUser = {
   id: string;
@@ -27,7 +27,7 @@ type SocialLoginResponse = {
 type SocialLoginInput = {
   provider: Provider;
   idToken?: string; // google
-  authCode?: string; // toss
+  authCode?: string; // 예약: 2차 소셜(인가코드 방식)용
   pushToken?: string;
 };
 
