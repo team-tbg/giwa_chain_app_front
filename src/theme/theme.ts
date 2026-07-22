@@ -8,26 +8,33 @@ import type { TextStyle } from 'react-native';
  */
 
 const palette = {
-  primary: '#2563EB', // 주 강조 — 주요 버튼/전환/네비
-  primaryDeep: '#1D4ED8', // 눌림
-  primarySoft: 'rgba(37,99,235,0.10)', // 블루 틴트 배경
+  primary: '#2F6BF3', // 주 강조 — 주요 버튼/전환/네비 (v10 --blue)
+  primaryDeep: '#1E4FBF', // 눌림 (v10 --blue-deep)
+  primarySoft: '#E8EFFE', // 블루 틴트 배경 (v10 --blue-soft)
   onPrimary: '#FFFFFF', // 블루 위 텍스트
 
-  reward: '#059669', // 리워드/포지티브(성장·받기)
-  rewardSoft: 'rgba(5,150,105,0.10)',
+  reward: '#12B76A', // 리워드/포지티브(성장·받기) (v10 --grow)
+  rewardSoft: '#DEF7EC', // (v10 --grow-soft)
+  rewardDeep: '#087443', // (v10 --grow-deep)
   onReward: '#FFFFFF',
 
-  panel: '#EAF1FF', // 히어로·전환 패널(연블루 틴트, 텍스트는 진회색/블루)
+  gold: '#FDB022', // 보너스·강조 포인트 (v10 --gold)
+  goldSoft: '#FEF0D5', // (v10 --gold-soft)
+  onGold: '#A66A00', // 골드 틴트 위 텍스트
+
+  panel: '#EDF2FF', // 히어로·전환 패널(연블루 틴트)
 } as const;
 
 export const colors = {
-  bg: '#FFFFFF', // 앱 배경 (화이트)
-  surface: '#FFFFFF', // 카드 (경계선+옅은 그림자로 분리)
+  bg: '#F5F7FB', // 앱 배경 (v10 --app: 블루기 도는 옅은 그레이)
+  surface: '#FFFFFF', // 카드 (흰 배경, 옅은 그림자로 분리)
   surface2: '#F4F6FA', // 입력/보조 채움 (블루기 도는 그레이)
 
   ink: '#16202E', // 본문 텍스트 (블루기 도는 근-검정)
-  muted: '#6B7686', // 보조 텍스트
-  line: '#E7EBF1', // 구분선/테두리
+  muted: '#6E7A8A', // 보조 텍스트 (v10 --muted)
+  dim: '#AEB6C2', // 더 옅은 보조·비활성 (v10 --dim)
+  line: '#EDEFF4', // 구분선/테두리 (v10 --line)
+  red: '#E5484D', // 위험·감소 (v10 --red)
   warn: '#B45309', // 리스크·주의 고지 텍스트
   warnSoft: 'rgba(245,158,11,0.12)',
 

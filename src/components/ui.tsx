@@ -1,4 +1,4 @@
-/** 공용 UI 컴포넌트 — 다크 테마 토큰 기반. docs/09-design-dark-theme.md */
+/** 공용 UI 컴포넌트 — 라이트 · 핀테크 블루 토큰 기반. docs/09-design-theme.md */
 import React from 'react';
 import {
   Pressable,
@@ -9,6 +9,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { cardShadow, colors, radii } from '../theme/theme';
 
 type BtnVariant = 'primary' | 'plain' | 'ghost' | 'honey';
@@ -109,7 +110,53 @@ export function Amount({
   );
 }
 
+/**
+ * 걸음 진행 링 (v10 hero ring 대응).
+ * size 안에 중앙 콘텐츠(children)를 얹는다. progress 0~1.
+ */
+export function ProgressRing({
+  size = 214,
+  stroke = 17,
+  progress,
+  color = colors.primary,
+  track = colors.line,
+  children,
+}: {
+  size?: number;
+  stroke?: number;
+  progress: number;
+  color?: string;
+  track?: string;
+  children?: React.ReactNode;
+}) {
+  const p = Math.max(0, Math.min(1, progress));
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const center = size / 2;
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
+        <Circle cx={center} cy={center} r={r} stroke={track} strokeWidth={stroke} fill="none" />
+        <Circle
+          cx={center}
+          cy={center}
+          r={r}
+          stroke={color}
+          strokeWidth={stroke}
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - p)}
+          transform={`rotate(-90 ${center} ${center})`}
+        />
+      </Svg>
+      <View style={styles.ringCenter}>{children}</View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  ringCenter: { alignItems: 'center', justifyContent: 'center' },
   btn: {
     borderRadius: radii.md,
     alignItems: 'center',

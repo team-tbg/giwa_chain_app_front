@@ -1,0 +1,2384 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>나드리 · 프로토타입 v10</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+:root{
+  --canvas:#E9EDF3;--app:#F5F7FB;--white:#fff;
+  --blue:#2F6BF3;--blue-deep:#1E4FBF;--blue-soft:#E8EFFE;
+  --gold:#FDB022;--gold-soft:#FEF0D5;
+  --grow:#12B76A;--grow-soft:#DEF7EC;--grow-deep:#087443;
+  --ink:#16202E;--muted:#6E7A8A;--line:#EDEFF4;--dim:#AEB6C2;
+  --red:#E5484D;
+  --shadow:0 8px 24px rgba(30,50,90,.07);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:'Pretendard','Noto Sans KR',-apple-system,'Apple SD Gothic Neo',sans-serif;
+  background:radial-gradient(900px 500px at 50% -8%,#F1F4F9,var(--canvas));
+  color:var(--ink);min-height:100%;
+  display:flex;flex-direction:column;align-items:center;gap:14px;padding:22px 14px 40px;
+}
+.brandline{display:flex;align-items:center;gap:9px;color:var(--blue-deep);font-weight:800;font-size:15px}
+.brandline small{font-weight:600;color:var(--muted)}
+.phone{width:390px;max-width:96vw;height:830px;max-height:86vh;background:var(--app);
+  border-radius:46px;position:relative;overflow:hidden;border:10px solid #0E1826;
+  box-shadow:0 30px 70px rgba(18,40,70,.26)}
+.statusbar{height:36px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 26px;font-size:13px;font-weight:700;opacity:.85;position:relative;z-index:5}
+.notch{position:absolute;left:50%;top:8px;transform:translateX(-50%);background:#0E1826;color:#fff;
+  font-size:11px;font-weight:700;padding:3px 12px;border-radius:20px}
+
+/* screen system */
+.screens{position:absolute;inset:36px 0 0 0;overflow:hidden}
+.screen{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;opacity:0;transform:translateY(10px);
+  pointer-events:none;transition:opacity .24s ease,transform .24s ease;padding-bottom:96px;scrollbar-width:none}
+.screen::-webkit-scrollbar{display:none}
+.screen.on{opacity:1;transform:none;pointer-events:auto;z-index:2}
+.screen.noTab{padding-bottom:0}
+
+/* header */
+.shead{position:sticky;top:0;background:var(--app);z-index:6;display:flex;align-items:center;
+  gap:8px;padding:10px 16px 12px;border-bottom:1px solid transparent}
+.shead.line{border-color:var(--line)}
+.backb{width:34px;height:34px;border-radius:11px;border:none;background:transparent;font-size:20px;
+  color:var(--ink);cursor:pointer;display:grid;place-items:center;flex:0 0 auto}
+.backb:hover{background:#EDF0F6}
+.shead h2{flex:1;text-align:center;font-size:17px;font-weight:800;letter-spacing:-.3px}
+.shead .spacer{width:34px;flex:0 0 auto}
+
+/* tabbar */
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:74px;background:rgba(255,255,255,.94);
+  backdrop-filter:blur(12px);border-top:1px solid var(--line);display:grid;
+  grid-template-columns:repeat(5,1fr);align-items:center;z-index:30;padding-bottom:6px}
+.tabbar.hide{display:none}
+.tab{display:flex;flex-direction:column;align-items:center;gap:3px;border:none;background:none;
+  cursor:pointer;color:var(--dim);font-size:11px;font-weight:700;padding:6px 0}
+.tab .ic{font-size:19px;line-height:1;filter:grayscale(1);opacity:.5;transition:.15s}
+.tab.on{color:var(--blue)}
+.tab.on .ic{filter:none;opacity:1;transform:translateY(-1px)}
+
+/* generic */
+.pad{padding:0 16px}
+.card{background:var(--white);border-radius:20px;padding:18px;box-shadow:var(--shadow)}
+.row{display:flex;align-items:center;gap:10px}
+.between{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.muted{color:var(--muted)}
+.tiny{font-size:12px}
+.sm{font-size:13px}
+.b{font-weight:800}
+.center{text-align:center}
+.mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}.mt24{margin-top:24px}
+.sect-t{font-size:15px;font-weight:800;letter-spacing:-.3px;margin:22px 16px 10px}
+.sect-t span{font-size:12px;font-weight:600;color:var(--muted);margin-left:6px}
+
+.btn{width:100%;border:none;border-radius:16px;padding:16px;font-size:16px;font-weight:800;
+  font-family:inherit;cursor:pointer;transition:.15s;letter-spacing:-.3px}
+.btn:active{transform:scale(.985)}
+.btn.pri{background:var(--blue);color:#fff}
+.btn.grow{background:var(--grow);color:#fff}
+.btn.ghost{background:#EEF1F6;color:var(--ink)}
+.btn.line{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+.btn.danger{background:#FDECEC;color:var(--red)}
+.btn:disabled{background:#EDEFF4;color:var(--dim);cursor:not-allowed}
+.btn.sm{padding:12px;font-size:14px;border-radius:13px}
+.btn2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+.pill{display:inline-flex;align-items:center;gap:6px;background:#fff;border-radius:999px;
+  padding:7px 13px;font-size:13px;font-weight:800;box-shadow:0 2px 8px rgba(30,50,90,.06)}
+.chip{display:inline-flex;align-items:center;gap:5px;background:var(--blue-soft);color:var(--blue-deep);
+  border-radius:999px;padding:6px 11px;font-size:12px;font-weight:800}
+.chip.g{background:var(--grow-soft);color:var(--grow-deep)}
+.chip.y{background:var(--gold-soft);color:#A66A00}
+.badge{background:var(--gold);color:#fff;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:800}
+
+/* onboarding */
+#s-onboard{display:flex;flex-direction:column;justify-content:center;padding:0 26px 40px}
+.ob-brand{text-align:center;margin-bottom:auto;margin-top:auto}
+.ob-sub{font-size:14px;font-weight:700;color:var(--muted);letter-spacing:-.2px}
+.ob-logo{font-size:46px;font-weight:900;color:var(--blue);letter-spacing:-2px;margin-top:8px}
+.ob-btns{margin-top:auto;display:flex;flex-direction:column;gap:10px;padding-bottom:26px}
+.ob-btn{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;border-radius:15px;
+  padding:15px;font-size:15px;font-weight:800;font-family:inherit;cursor:pointer;border:1.5px solid var(--line);
+  background:#fff;color:var(--ink);transition:.15s}
+.ob-btn:active{transform:scale(.985)}
+.ob-btn.toss{background:#0064FF;color:#fff;border-color:#0064FF}
+.lg{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;font-size:12px;font-weight:900;flex:0 0 auto}
+.lg.mail{background:#EDEFF4;color:#5A6675}
+.lg.toss{background:#fff;color:#0064FF;font-size:13px}
+
+/* home */
+.hero{margin:2px 16px 0;background:#fff;border-radius:24px;padding:18px;box-shadow:var(--shadow)}
+.ring-wrap{position:relative;width:214px;height:214px;margin:6px auto 2px}
+.ring-wrap svg{transform:rotate(-90deg)}
+.ring-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring-c .lab{font-size:12px;font-weight:700;color:var(--muted)}
+.ring-c .num{font-size:42px;font-weight:900;letter-spacing:-2px;line-height:1.1}
+.ring-c .goal{font-size:12px;font-weight:700;color:var(--dim);margin-top:2px}
+.stat2{display:grid;grid-template-columns:1fr 1fr;text-align:center;margin-top:6px}
+.stat2 b{font-size:17px;font-weight:900}
+.stat2 b i{font-style:normal;font-size:12px;color:var(--muted)}
+.stat2 p{font-size:11px;color:var(--muted);font-weight:600;margin-top:2px}
+
+.claim{margin:12px 16px 0;background:#fff;border-radius:20px;padding:14px 16px;box-shadow:var(--shadow);
+  display:flex;align-items:center;justify-content:space-between;gap:10px}
+.claim .l p{font-size:12px;color:var(--muted);font-weight:700}
+.claim .l b{font-size:24px;font-weight:900;letter-spacing:-1px}
+.claim button{border:none;background:var(--blue);color:#fff;border-radius:13px;padding:12px 20px;
+  font-size:15px;font-weight:800;font-family:inherit;cursor:pointer}
+.claim button:disabled{background:#EDEFF4;color:var(--dim)}
+
+.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 16px 0}
+.qb{background:#fff;border:none;border-radius:18px;padding:13px 4px 11px;box-shadow:var(--shadow);
+  cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:7px;position:relative}
+.qb:active{transform:scale(.97)}
+.qb .ic{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-size:19px}
+.qb span{font-size:12px;font-weight:800;color:var(--ink)}
+.qb .dot{position:absolute;top:9px;right:11px;width:7px;height:7px;border-radius:50%;background:var(--red)}
+
+.grow-banner{margin:14px 16px 0;background:linear-gradient(135deg,#EDF2FF,#E7EEFE);border-radius:20px;
+  padding:16px 18px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;gap:10px}
+.grow-banner b{font-size:15px;font-weight:800;color:var(--blue-deep)}
+.grow-banner p{font-size:12px;color:#6076A0;font-weight:600;margin-top:3px}
+.grow-banner .pig{font-size:38px}
+
+.asset-strip{margin:12px 16px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.asset-strip .a{background:#fff;border-radius:16px;padding:12px 14px;box-shadow:var(--shadow)}
+.asset-strip .a p{font-size:11px;color:var(--muted);font-weight:700}
+.asset-strip .a b{font-size:16px;font-weight:900;letter-spacing:-.5px;display:block;margin-top:3px}
+
+/* progress bar */
+.pbar{height:8px;background:#EDEFF4;border-radius:999px;overflow:hidden}
+.pbar i{display:block;height:100%;background:var(--blue);border-radius:999px;transition:width .5s cubic-bezier(.3,1,.4,1)}
+.pbar.g i{background:var(--grow)}
+
+/* list rows (혜택) */
+.lrow{background:#fff;border-radius:18px;padding:15px 16px;margin:0 16px 8px;display:flex;align-items:center;
+  gap:12px;box-shadow:var(--shadow);cursor:pointer;border:none;width:calc(100% - 32px);font-family:inherit;text-align:left}
+.lrow:active{transform:scale(.99)}
+.lrow .ic{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;font-size:21px;flex:0 0 auto}
+.lrow .tx{flex:1;min-width:0}
+.lrow .tx b{font-size:15px;font-weight:800;display:block;letter-spacing:-.3px}
+.lrow .tx p{font-size:12.5px;color:var(--muted);font-weight:600;margin-top:2px}
+.lrow .go{color:var(--dim);font-size:16px}
+.lrow.done{opacity:.5}
+
+/* interest */
+.grow-card{margin:0 16px;border-radius:24px;padding:20px 18px;color:#fff;position:relative;overflow:hidden}
+.grow-card.p{background:linear-gradient(140deg,#16C172,#0E9E5C)}
+.grow-card.c{background:linear-gradient(140deg,#3C7BFF,#2455C8)}
+.grow-card .k{font-size:13px;font-weight:800;opacity:.9}
+.grow-card .big{font-size:34px;font-weight:900;letter-spacing:-1.5px;margin-top:6px;line-height:1.15;
+  font-variant-numeric:tabular-nums}
+.grow-card .big small{font-size:19px;opacity:.85;font-weight:800}
+.grow-card .dec{font-size:19px;opacity:.75}
+.grow-card .rowline{display:flex;justify-content:space-between;align-items:center;margin-top:14px;
+  padding-top:12px;border-top:1px solid rgba(255,255,255,.22);font-size:13px;font-weight:700}
+.grow-card .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.grow-card .btns button{border:none;border-radius:13px;padding:12px;font-size:14px;font-weight:800;
+  font-family:inherit;cursor:pointer;background:rgba(255,255,255,.22);color:#fff}
+.grow-card .btns button.solid{background:#fff;color:var(--grow-deep)}
+.grow-card.c .btns button.solid{color:var(--blue-deep)}
+.empty-stake{text-align:center;padding:6px 0 2px}
+.empty-stake .big{opacity:.55}
+
+.intro-hero{text-align:center;padding:14px 26px 0}
+.intro-hero h1{font-size:27px;font-weight:900;letter-spacing:-1px;line-height:1.3}
+.intro-pig{font-size:92px;margin:18px 0 6px}
+.intro-list{background:#fff;border-radius:20px;padding:6px 18px;margin:8px 16px 0;box-shadow:var(--shadow)}
+.intro-list div{padding:15px 0;font-size:15px;font-weight:700;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px}
+.intro-list div:last-child{border:none}
+
+/* slider */
+.amt{text-align:center;font-size:38px;font-weight:900;color:var(--blue);letter-spacing:-1.5px;margin:12px 0 4px}
+.amt small{font-size:20px}
+input[type=range]{-webkit-appearance:none;width:100%;height:6px;border-radius:999px;background:#E3E7EE;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;
+  background:var(--blue);cursor:pointer;box-shadow:0 2px 8px rgba(47,107,243,.4)}
+.numin{width:100%;border:1.5px solid var(--line);border-radius:15px;padding:15px;font-size:22px;font-weight:900;
+  text-align:center;font-family:inherit;color:var(--ink);background:#fff}
+.numin:focus{outline:none;border-color:var(--blue)}
+
+/* shop */
+.shop-head{margin:0 16px;background:#fff;border-radius:20px;padding:16px 18px;box-shadow:var(--shadow)}
+.shop-head .k{font-size:12px;color:var(--muted);font-weight:700}
+.shop-head .v{font-size:30px;font-weight:900;letter-spacing:-1.4px;margin-top:2px}
+.shop-head .stake{font-size:11.5px;color:var(--dim);font-weight:600;margin-top:6px;font-variant-numeric:tabular-nums}
+.cats{display:flex;gap:7px;overflow-x:auto;padding:0 16px;margin-top:14px;scrollbar-width:none}
+.cats::-webkit-scrollbar{display:none}
+.cat{flex:0 0 auto;border:none;background:#fff;border-radius:999px;padding:10px 15px;font-size:13.5px;
+  font-weight:800;color:var(--muted);font-family:inherit;cursor:pointer;box-shadow:0 2px 6px rgba(30,50,90,.05)}
+.cat.on{background:var(--ink);color:#fff}
+.brands{display:flex;gap:14px;overflow-x:auto;padding:14px 16px 4px;scrollbar-width:none}
+.brands::-webkit-scrollbar{display:none}
+.brand{flex:0 0 auto;width:62px;text-align:center;cursor:pointer;border:none;background:none;font-family:inherit}
+.brand .cc{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;font-size:11px;
+  font-weight:900;margin:0 auto 6px;line-height:1.1;padding:4px;border:1.5px solid var(--line);overflow:hidden}
+.brand span{font-size:11px;font-weight:700;color:var(--muted);display:block;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.brand.on span{color:var(--ink);font-weight:800}
+.brand.on .cc{border-color:var(--ink);border-width:2px}
+.cat-note{margin:12px 16px 0;background:#fff;border-radius:14px;padding:12px 14px;font-size:12.5px;
+  color:var(--muted);font-weight:600;line-height:1.5;border-left:3px solid var(--blue)}
+.prod{display:flex;gap:14px;align-items:center;background:#fff;border-radius:18px;padding:14px;
+  margin:8px 16px 0;box-shadow:var(--shadow);cursor:pointer;border:none;width:calc(100% - 32px);
+  font-family:inherit;text-align:left}
+.prod:active{transform:scale(.99)}
+.prod .im{width:74px;height:74px;border-radius:14px;background:#F3F5F9;display:grid;place-items:center;
+  font-size:34px;flex:0 0 auto;position:relative}
+.prod .im .tagv{position:absolute;bottom:-5px;right:-5px;background:#fff;border-radius:999px;padding:3px 8px;
+  font-size:10.5px;font-weight:900;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+.prod .tx{flex:1;min-width:0}
+.prod .tx .br{font-size:12px;color:var(--muted);font-weight:700}
+.prod .tx .nm{font-size:14.5px;font-weight:800;margin-top:1px;line-height:1.35}
+.prod .tx .pr{font-size:19px;font-weight:900;margin-top:5px;display:flex;align-items:center;gap:5px}
+.prod .tx .pr i{width:19px;height:19px;border-radius:50%;background:var(--gold);color:#fff;font-size:11px;
+  font-weight:900;display:grid;place-items:center;font-style:normal}
+.prod .tx .cnt{font-size:11.5px;color:var(--dim);font-weight:600;margin-top:3px}
+.prod.cant .tx .pr{color:var(--dim)}
+
+.reviews{margin:14px 16px 0;background:#fff;border-radius:18px;padding:6px 16px;box-shadow:var(--shadow);
+  height:104px;overflow:hidden;position:relative}
+.rv-track{transition:transform .5s cubic-bezier(.4,0,.2,1)}
+.rv{padding:13px 0;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:flex-start;height:52px}
+.rv .av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:13px;flex:0 0 auto}
+.rv p{font-size:12.5px;font-weight:700;line-height:1.35}
+.rv span{font-size:11px;color:var(--dim);font-weight:600}
+
+/* sheet / modal */
+.mask{position:absolute;inset:0;background:rgba(12,20,34,.42);opacity:0;pointer-events:none;
+  transition:.22s;z-index:60}
+.mask.on{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:26px 26px 0 0;padding:22px 20px 26px;
+  transform:translateY(101%);transition:transform .28s cubic-bezier(.3,1,.4,1);z-index:61;max-height:88%;overflow-y:auto}
+.sheet.on{transform:none}
+.sheet .hb{width:38px;height:4px;border-radius:99px;background:#E2E6ED;margin:0 auto 16px}
+.sheet h3{font-size:19px;font-weight:900;letter-spacing:-.5px;text-align:center}
+.sheet .sub{font-size:13.5px;color:var(--muted);font-weight:600;text-align:center;margin-top:6px;line-height:1.5}
+.pay{display:flex;align-items:center;gap:12px;padding:15px 14px;border:1.5px solid var(--line);border-radius:15px;
+  margin-top:8px;cursor:pointer;font-weight:800;font-size:15px;background:#fff;width:100%;font-family:inherit}
+.pay:active{background:#F7F9FC}
+.pay .cc{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-size:12px;font-weight:900;color:#fff}
+
+/* toast */
+.toast{position:absolute;left:50%;bottom:96px;transform:translate(-50%,14px);background:rgba(16,24,38,.93);
+  color:#fff;padding:13px 20px;border-radius:15px;font-size:14px;font-weight:800;opacity:0;
+  transition:.25s;z-index:80;pointer-events:none;text-align:center;max-width:86%;line-height:1.45}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* attendance */
+.att{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 16px}
+.att .d{background:#fff;border-radius:16px;padding:12px 6px;text-align:center;box-shadow:var(--shadow);position:relative}
+.att .d .n{font-size:11px;font-weight:800;color:var(--muted)}
+.att .d .p{font-size:14px;font-weight:900;margin-top:5px}
+.att .d .co{font-size:20px;margin-top:4px}
+.att .d.got{background:var(--grow-soft)}
+.att .d.got .p{color:var(--grow-deep)}
+.att .d.today{outline:2px solid var(--blue);outline-offset:-2px}
+.att .d.d7{grid-column:span 1;background:var(--gold-soft)}
+
+/* quiz */
+.qz{margin:0 16px;background:#fff;border-radius:22px;padding:22px 20px;box-shadow:var(--shadow);text-align:center}
+.qz .cat{display:inline-block;background:var(--blue-soft);color:var(--blue-deep);border-radius:999px;
+  padding:5px 12px;font-size:12px;font-weight:800;margin-bottom:14px}
+.qz .q{font-size:19px;font-weight:800;line-height:1.5;letter-spacing:-.4px;min-height:86px;display:flex;
+  align-items:center;justify-content:center}
+.oxb{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 16px}
+.oxb button{border:none;border-radius:20px;padding:26px 0;font-size:38px;font-weight:900;cursor:pointer;
+  font-family:inherit;background:#fff;box-shadow:var(--shadow);transition:.15s}
+.oxb button.o{color:var(--blue)}
+.oxb button.x{color:var(--red)}
+.oxb button:active{transform:scale(.96)}
+.oxb button:disabled{opacity:.4}
+.ans{margin:12px 16px 0;border-radius:16px;padding:15px 16px;font-size:13.5px;font-weight:700;line-height:1.55}
+.ans.ok{background:var(--grow-soft);color:var(--grow-deep)}
+.ans.no{background:#FDECEC;color:#B42318}
+
+/* roulette */
+.wheel-wrap{position:relative;width:250px;height:250px;margin:10px auto 0}
+.wheel{width:250px;height:250px;border-radius:50%;position:relative;transition:transform 4.2s cubic-bezier(.15,.9,.25,1);
+  border:8px solid #fff;box-shadow:0 10px 30px rgba(30,50,90,.18)}
+.wheel .seg{position:absolute;inset:0;display:grid;place-items:start center;padding-top:16px;
+  font-size:15px;font-weight:900;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.25)}
+.needle{position:absolute;top:-6px;left:50%;transform:translateX(-50%);font-size:26px;z-index:3;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.25))}
+.wheel-c{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:64px;height:64px;
+  background:#fff;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:900;
+  box-shadow:0 3px 10px rgba(0,0,0,.14);z-index:2;color:var(--ink)}
+
+/* game */
+.gwrap{margin:0 16px;height:400px;background:linear-gradient(180deg,#DDE9FF,#EEF3FE);border-radius:22px;
+  position:relative;overflow:hidden;box-shadow:var(--shadow)}
+.coin{position:absolute;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;
+  font-size:16px;font-weight:900;color:#fff;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,.16)}
+.coin.c1{background:linear-gradient(140deg,#FFD470,#F5A623)}
+.coin.c3{background:linear-gradient(140deg,#8FD4FF,#2F6BF3)}
+.coin.c5{background:linear-gradient(140deg,#7BEFB0,#12B76A)}
+.coin.bomb{background:linear-gradient(140deg,#8A94A6,#4A5568)}
+.gtop{display:flex;justify-content:space-between;margin:0 16px 10px;font-size:15px;font-weight:900}
+.gpop{position:absolute;font-size:15px;font-weight:900;color:var(--grow-deep);pointer-events:none;
+  animation:fly .7s ease-out forwards}
+@keyframes fly{to{transform:translateY(-42px);opacity:0}}
+
+/* video / music player */
+.player{margin:0 16px;background:#0E1826;border-radius:20px;height:200px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;color:#fff;gap:10px;position:relative;overflow:hidden}
+.player .ttl{font-size:14px;font-weight:800;opacity:.9}
+.player .ic{font-size:48px}
+.plbar{height:5px;background:rgba(255,255,255,.22);border-radius:99px;position:absolute;left:16px;right:16px;bottom:16px}
+.plbar i{display:block;height:100%;background:#fff;border-radius:99px;width:0;transition:width .1s linear}
+
+/* invite */
+.inv{background:#fff;border-radius:16px;padding:14px 16px;margin:0 16px 8px;box-shadow:var(--shadow);
+  display:flex;align-items:center;justify-content:space-between;gap:10px}
+.inv b{font-size:14px;font-weight:800}
+.inv p{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px}
+.st{font-size:11.5px;font-weight:800;border-radius:999px;padding:5px 10px;white-space:nowrap}
+.st.wait{background:#F1F3F7;color:var(--muted)}
+.st.join{background:var(--blue-soft);color:var(--blue-deep)}
+.st.paid{background:var(--grow-soft);color:var(--grow-deep)}
+.code{font-family:ui-monospace,monospace;font-size:20px;font-weight:900;letter-spacing:3px;color:var(--blue-deep)}
+
+/* misc list */
+.mlist{background:#fff;border-radius:18px;margin:0 16px;box-shadow:var(--shadow);overflow:hidden}
+.mlist button{width:100%;border:none;background:none;font-family:inherit;text-align:left;padding:16px;
+  font-size:14.5px;font-weight:700;border-bottom:1px solid var(--line);cursor:pointer;display:flex;
+  justify-content:space-between;align-items:center}
+.mlist button:last-child{border:none}
+.mlist button:active{background:#F7F9FC}
+.mlist button span{color:var(--dim);font-size:13px;font-weight:600}
+
+.switch{width:48px;height:28px;border-radius:99px;background:#DDE1E9;position:relative;cursor:pointer;
+  transition:.2s;border:none;flex:0 0 auto}
+.switch.on{background:var(--grow)}
+.switch i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;
+  transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.switch.on i{left:23px}
+
+.notice{margin:0 16px;background:var(--gold-soft);border-radius:14px;padding:12px 14px;font-size:12.5px;
+  font-weight:700;color:#8A5A00;line-height:1.5}
+.hint{font-size:12px;color:var(--muted);font-weight:600;text-align:center;margin-top:10px;line-height:1.5}
+.survey-q{background:#fff;border-radius:18px;padding:16px;margin:0 16px 10px;box-shadow:var(--shadow)}
+.survey-q b{font-size:14.5px;font-weight:800;display:block;margin-bottom:10px}
+.sopt{display:flex;gap:6px;flex-wrap:wrap}
+.sopt button{border:1.5px solid var(--line);background:#fff;border-radius:11px;padding:9px 13px;font-size:13px;
+  font-weight:700;font-family:inherit;cursor:pointer}
+.sopt button.on{border-color:var(--blue);background:var(--blue-soft);color:var(--blue-deep)}
+textarea{width:100%;border:1.5px solid var(--line);border-radius:13px;padding:13px;font-family:inherit;
+  font-size:14px;resize:none;height:88px}
+textarea:focus{outline:none;border-color:var(--blue)}
+.bonus-slot{background:#fff;border-radius:18px;padding:16px;margin:0 16px 8px;box-shadow:var(--shadow);
+  display:flex;align-items:center;gap:12px}
+.bonus-slot.off{opacity:.55}
+.bonus-slot .tx{flex:1}
+.bonus-slot .tx b{font-size:15px;font-weight:800}
+.bonus-slot .tx p{font-size:12px;color:var(--muted);font-weight:600;margin-top:2px}
+.bonus-slot button{border:none;border-radius:12px;padding:11px 16px;font-size:14px;font-weight:800;
+  font-family:inherit;background:var(--blue);color:#fff;cursor:pointer}
+.bonus-slot button:disabled{background:#EDEFF4;color:var(--dim)}
+/* ==== v5 추가/수정 ==== */
+.tabbar{grid-template-columns:repeat(6,1fr)}
+.tab{font-size:10px;gap:2px}
+.tab .ic{font-size:17px}
+.pc{width:19px;height:19px;border-radius:50%;background:var(--gold);color:#fff;font-size:11px;
+  font-weight:900;display:grid;place-items:center;font-style:normal;flex:0 0 auto}
+.linkb{background:none;border:none;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--muted);
+  padding:10px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.refbar{width:calc(100% - 32px);margin:12px 16px 0;background:var(--gold-soft);border:none;border-radius:16px;
+  padding:14px 16px;font-family:inherit;font-size:13px;font-weight:800;color:#8A5A00;text-align:left;cursor:pointer}
+.todaybar{width:calc(100% - 32px);margin:12px 16px 0;background:none;border:none;font-family:inherit;
+  padding:0;cursor:pointer;text-align:left;display:block}
+.asset-strip .a{border:none;font-family:inherit;text-align:left;cursor:pointer;display:block}
+.hrow{display:flex;align-items:center;gap:12px;background:#fff;border-radius:16px;padding:13px 15px;
+  margin:0 16px 7px;box-shadow:var(--shadow)}
+.hrow .ic{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:14px;
+  font-weight:900;flex:0 0 auto;color:var(--grow-deep)}
+.hrow .tx{flex:1;min-width:0}
+.hrow .tx b{font-size:14px;font-weight:800;display:block}
+.hrow .tx p{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px}
+.bestrow{display:flex;gap:10px;overflow-x:auto;padding:0 16px 4px;scrollbar-width:none}
+.bestrow::-webkit-scrollbar{display:none}
+.bcard{flex:0 0 auto;width:142px;background:#fff;border:none;border-radius:18px;padding:14px 12px;
+  box-shadow:var(--shadow);font-family:inherit;text-align:left;cursor:pointer;position:relative;
+  display:flex;flex-direction:column;gap:2px}
+.bcard:active{transform:scale(.98)}
+.bcard .rk{position:absolute;top:10px;right:12px;font-size:12px;font-weight:900;color:var(--dim)}
+.bcard .im{font-size:32px;height:44px;display:flex;align-items:center}
+.bcard .br{font-size:11px;color:var(--muted);font-weight:700}
+.bcard .nm{font-size:13px;font-weight:800;line-height:1.35;height:36px;overflow:hidden}
+.bcard .pr{font-size:16px;font-weight:900;display:flex;align-items:center;gap:5px;margin-top:4px}
+.stakebar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.uselink{background:none;border:none;font-family:inherit;font-size:12px;font-weight:800;color:var(--blue);
+  cursor:pointer;padding:4px 0;white-space:nowrap;text-decoration:underline;text-underline-offset:3px}
+.qmark{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--blue);
+  color:#fff;font-size:11px;font-weight:900;margin-left:6px;cursor:pointer;position:relative;vertical-align:-3px}
+.tipbox{display:none;position:absolute;left:-200px;top:24px;width:270px;background:#16202E;color:#fff;
+  border-radius:14px;padding:14px;font-size:12px;font-weight:600;line-height:1.6;z-index:50;
+  box-shadow:0 10px 30px rgba(0,0,0,.28);text-align:left}
+.qmark:hover .tipbox{display:block}
+.tipbox b,.tipbody b{color:#fff;font-weight:800}
+.tipbox p,.tipbody p{margin-top:8px}
+.tipbody{font-size:13px;font-weight:600;line-height:1.65;color:var(--ink)}
+.tipbody b{color:var(--ink)}
+.tipbody .warn,.tipbox .warn{margin-top:12px;padding-top:10px;border-top:1px solid rgba(0,0,0,.1);color:var(--muted)}
+.tipbox .warn{border-color:rgba(255,255,255,.2);color:#C9D2E0}
+.livq{display:block;font-size:11.5px;font-weight:800;color:var(--blue);margin-top:3px;font-variant-numeric:tabular-nums}
+.mixbar{display:flex;height:12px;border-radius:99px;overflow:hidden;background:#EDEFF4;gap:2px}
+.mixbar i{display:block;height:100%;min-width:0}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;font-weight:800}
+.adsteps{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:0 16px 12px}
+.adsteps .ad{background:#fff;border-radius:13px;padding:10px 4px;text-align:center;box-shadow:var(--shadow)}
+.adsteps .ad b{display:block;font-size:11px;color:var(--muted);font-weight:800}
+.adsteps .ad span{display:block;font-size:14px;font-weight:900;margin-top:3px}
+.adsteps .ad.used{background:#EDEFF4;opacity:.5}
+.adsteps .ad.now{outline:2px solid var(--blue);outline-offset:-2px}
+.notice2{background:#F1F4F9;border-radius:14px;padding:12px 14px;font-size:12.5px;font-weight:600;
+  color:var(--muted);line-height:1.6}
+.notice2 b{color:var(--ink);font-weight:800}
+.qrev{background:#fff;border-radius:16px;padding:14px 16px;margin:0 16px 8px;box-shadow:var(--shadow);
+  border-left:4px solid var(--grow)}
+.qrev.no{border-left-color:var(--red)}
+.qrev .qn{font-size:11.5px;font-weight:800;color:var(--muted)}
+.qrev .qres{font-size:11.5px;font-weight:800;color:var(--grow-deep)}
+.qrev.no .qres{color:var(--red)}
+.qrev .qq{font-size:14px;font-weight:800;line-height:1.5;margin-top:7px}
+.qrev .qab{display:flex;gap:14px;margin-top:9px;font-size:12px;font-weight:600;color:var(--muted)}
+.qrev .qab b{color:var(--ink);font-weight:900}
+.qrev .qex{font-size:12px;font-weight:600;color:var(--muted);line-height:1.55;margin-top:8px;
+  padding-top:8px;border-top:1px solid var(--line)}
+.sbtn{width:100%;background:#fff;border:1.5px solid var(--line);border-radius:15px;padding:16px;
+  font-family:inherit;font-size:15px;font-weight:700;text-align:left;cursor:pointer;margin-bottom:8px}
+.sbtn.on{border-color:var(--blue);background:var(--blue-soft);color:var(--blue-deep);font-weight:800}
+.sbtn:active{transform:scale(.99)}
+.btn.kakao{background:#FEE500;color:#3C1E1E}
+.sharecard{background:#F7F9FC;border-radius:16px;padding:16px}
+.sharecard b{font-size:14px;font-weight:800;display:block}
+.sharecard p{font-size:12.5px;color:var(--muted);font-weight:600;margin-top:5px;line-height:1.5}
+.sharecard span{font-size:11.5px;color:var(--blue);font-weight:700;display:block;margin-top:9px}
+.coin b{font-size:17px;font-weight:900}
+.oxb button.sel{outline:3px solid currentColor;outline-offset:-3px}
+.reviews{height:116px;padding:0 16px}
+.rv{height:58px;padding:13px 0;overflow:hidden}
+.qz .cat{margin-bottom:14px}
+
+/* ==== v6 ==== */
+.qb.row2{flex-direction:row;justify-content:center;gap:9px;padding:14px 6px}
+.qb.row2 .ic{width:30px;height:30px;font-size:16px;border-radius:10px}
+.askline{font-size:13px;font-weight:800;color:var(--muted);cursor:pointer}
+.midcopy{text-align:center;margin:20px 16px 4px;padding:14px;background:#fff;border-radius:18px;box-shadow:var(--shadow)}
+.midcopy b{font-size:15px;font-weight:800;display:block}
+.midcopy p{font-size:13px;color:var(--muted);font-weight:700;margin-top:5px}
+.sect-row{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin:22px 16px 10px}
+.st-l b{font-size:15px;font-weight:800;letter-spacing:-.3px}
+.st-l span{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-top:3px}
+.st-r{display:flex;gap:6px;flex:0 0 auto}
+.minib{border:1.5px solid var(--line);background:#fff;border-radius:11px;padding:8px 14px;font-family:inherit;
+  font-size:13px;font-weight:800;color:var(--ink);cursor:pointer}
+.minib:active{transform:scale(.97)}
+.minib.wide{width:100%;padding:10px}
+.cat-note{display:flex;align-items:center;gap:4px;justify-content:space-between}
+.cat-note .cn-t{flex:1;min-width:0}
+.qmark{position:relative;flex:0 0 auto}
+.tipbox{left:auto;right:-6px;width:264px}
+.qmark.tl .tipbox{left:-6px;right:auto}
+.bestrow{cursor:grab;user-select:none}
+.bestrow.drag{cursor:grabbing}
+.bcard.top{border:2px solid var(--line)}
+.bcard.t1{border-color:#F5C518;background:linear-gradient(180deg,#FFFBEF,#fff)}
+.bcard.t2{border-color:#C0C7D1;background:linear-gradient(180deg,#F8FAFC,#fff)}
+.bcard.t3{border-color:#D9A066;background:linear-gradient(180deg,#FFF7F0,#fff)}
+.bcard.top .rk{font-size:11px;font-weight:900;color:var(--ink)}
+.nightcard{background:linear-gradient(140deg,#20304D,#141E33);border-radius:20px;margin:14px 16px 0;
+  padding:16px 18px;color:#fff;cursor:pointer}
+.nightcard.now{outline:2px solid var(--blue);outline-offset:2px}
+.nightcard .nb{display:flex;gap:12px;align-items:flex-start}
+.nightcard b{font-size:14.5px;font-weight:800;display:block}
+.nightcard p{font-size:12.5px;color:#B8C4D8;font-weight:600;margin-top:4px;line-height:1.5}
+.nightcard .nline{margin-top:12px;padding-top:11px;border-top:1px solid rgba(255,255,255,.16);
+  font-size:13px;font-weight:800;color:#8FB8FF}
+.droplist{display:flex;gap:6px;margin:0 16px 12px;overflow-x:auto;scrollbar-width:none}
+.droplist::-webkit-scrollbar{display:none}
+.dl{flex:1 0 auto;background:#fff;border-radius:14px;padding:10px 8px;text-align:center;box-shadow:var(--shadow);min-width:64px}
+.dl b{display:block;font-size:11px;font-weight:800;margin-top:5px}
+.dl span:last-child{display:block;font-size:12px;font-weight:900;color:var(--grow-deep);margin-top:2px}
+.coin.c0{background:linear-gradient(140deg,#C7CDD8,#8A94A6)}
+.coin.c1{background:linear-gradient(140deg,#FFD470,#F5A623)}
+.coin.c2{background:linear-gradient(140deg,#8FE3C8,#26A17B)}
+.coin.c3{background:linear-gradient(140deg,#F3DE9A,#C9A227)}
+.coin.c4{background:linear-gradient(140deg,#FFC189,#F7931A)}
+.coin.mini{position:relative;width:30px;height:30px;font-size:13px;margin:0 auto;cursor:default}
+.coin.mini b{font-size:13px}
+.gmachine{margin:0 16px;background:linear-gradient(180deg,#F3EDFF,#EAF0FE);border-radius:22px;height:230px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;box-shadow:var(--shadow)}
+.gball{width:110px;height:110px;border-radius:50%;background:#fff;display:grid;place-items:center;
+  font-size:52px;box-shadow:0 8px 22px rgba(60,40,120,.16)}
+.gball.spin{animation:gsp .35s linear infinite}
+@keyframes gsp{50%{transform:scale(1.07) rotate(8deg)}100%{transform:scale(1) rotate(0)}}
+.gtxt{font-size:14px;font-weight:800;color:#4A3A7A;text-align:center;padding:0 20px;line-height:1.5}
+.grow2{display:flex;align-items:center;gap:12px;background:#fff;border-radius:16px;padding:13px 15px;
+  margin:0 16px 7px;box-shadow:var(--shadow);border-left:4px solid var(--line)}
+.grow2.t1{border-left-color:#8FB8FF}
+.grow2.t2{border-left-color:var(--gold)}
+.grow2 .im{font-size:26px;width:34px;text-align:center;flex:0 0 auto}
+.grow2 .tx{flex:1;min-width:0}
+.grow2 .tx b{font-size:14px;font-weight:800;display:block}
+.grow2 .tx p{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px}
+.grow2 .rate{font-size:13px;font-weight:900;color:var(--blue-deep);font-variant-numeric:tabular-nums}
+.gwin{background:#F7F9FC;border-radius:18px;padding:22px;text-align:center}
+.gwin span{font-size:52px;display:block}
+.gwin b{font-size:17px;font-weight:800;display:block;margin-top:10px}
+.gwin p{font-size:13px;color:var(--muted);font-weight:700;margin-top:4px}
+.wrow{background:#fff;border-radius:16px;padding:13px 15px;margin:0 16px 7px;box-shadow:var(--shadow)}
+.wtop{display:flex;align-items:center;gap:12px}
+.wtop .ic{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:13px;flex:0 0 auto}
+.wtop .tx{flex:1;min-width:0}
+.wtop .tx b{font-size:14px;font-weight:800;display:block}
+.wtop .tx p{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px}
+.wact{display:flex;gap:6px;margin-top:11px;padding-top:11px;border-top:1px solid var(--line)}
+.wact .minib{flex:1}
+.stakebar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;flex-wrap:nowrap}
+.stakebar .stake{margin-top:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shop-head .stake{margin-top:6px}
+
+/* ==== v7 ==== */
+.tipfloat{position:absolute;display:none;width:268px;background:#16202E;color:#fff;border-radius:14px;
+  padding:15px;font-size:12px;font-weight:600;line-height:1.65;z-index:90;pointer-events:none;
+  box-shadow:0 14px 36px rgba(0,0,0,.34)}
+.tipfloat b{color:#fff;font-weight:800}
+.tipfloat p{margin-top:9px}
+.tipfloat .warn{margin-top:11px;padding-top:9px;border-top:1px solid rgba(255,255,255,.2);color:#C3CDDC}
+.tipbox{display:none !important}
+.qmark{display:inline-grid;place-items:center;width:17px;height:17px;border-radius:50%;background:var(--blue);
+  color:#fff;font-size:11px;font-weight:900;margin-left:5px;cursor:help;vertical-align:middle;
+  position:relative;top:-1px;flex:0 0 auto}
+.todaybar .between span,.asset-strip .a p{display:inline-flex;align-items:center}
+.stakebar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:7px}
+.stakebar .stake{margin:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  line-height:1.2;display:flex;align-items:center}
+.stakebar .uselink{padding:0;line-height:1.2;flex:0 0 auto}
+.cat-note{display:flex;align-items:center;gap:2px}
+.cat-note .cn-t{flex:1;min-width:0}
+.sect-row .st-l b{display:inline-flex;align-items:center}
+/* 드래그 힌트 */
+.draghint{display:flex;align-items:center;justify-content:center;gap:7px;margin:10px 16px 0;
+  font-size:11.5px;font-weight:700;color:var(--dim)}
+.mouseic{width:14px;height:21px;border:1.6px solid var(--dim);border-radius:8px;position:relative;flex:0 0 auto}
+.mouseic i{position:absolute;left:50%;top:3px;width:2px;height:5px;border-radius:2px;background:var(--dim);
+  transform:translateX(-50%);animation:wh 1.5s ease-in-out infinite}
+@keyframes wh{0%,100%{top:3px;opacity:1}50%{top:9px;opacity:.35}}
+/* 쿠폰함 */
+.cpgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:0 16px}
+.cpgrid.dim{opacity:.45}
+.cp{background:#fff;border:none;border-radius:18px;padding:12px;box-shadow:var(--shadow);font-family:inherit;
+  text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:3px}
+.cp:active{transform:scale(.98)}
+.cpim{height:82px;border-radius:13px;background:#F3F5F9;display:grid;place-items:center;font-size:38px;
+  position:relative;margin-bottom:7px}
+.cpim .dd{position:absolute;top:7px;left:7px;background:rgba(22,32,46,.82);color:#fff;border-radius:8px;
+  padding:3px 7px;font-size:10.5px;font-weight:900}
+.cpbr{font-size:11px;color:var(--muted);font-weight:700}
+.cpnm{font-size:13px;font-weight:800;line-height:1.35;height:36px;overflow:hidden}
+.cpdt{font-size:11px;color:var(--dim);font-weight:700;margin-top:2px}
+.cp.more{align-items:center;justify-content:center;background:#EEF2F8;box-shadow:none}
+.cp.more .pl{font-size:30px;font-weight:900;color:var(--muted)}
+.cp.more .cpnm{height:auto;color:var(--muted);text-align:center}
+.cpempty{width:calc(100% - 32px);margin:0 16px;background:#fff;border:1.5px dashed var(--line);border-radius:18px;
+  padding:20px;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--muted);cursor:pointer}
+.cpbig{background:#F7F9FC;border-radius:18px;padding:20px;text-align:center}
+.cpface{font-size:52px}
+.barcode{display:flex;justify-content:center;align-items:flex-end;gap:2px;height:52px;margin-top:16px}
+.barcode i{display:block;height:100%;background:#16202E}
+.cpcode{font-family:ui-monospace,monospace;font-size:15px;font-weight:900;letter-spacing:2px;margin-top:12px}
+/* 보너스 개봉 */
+.bonusbox{background:#F7F9FC;border-radius:18px;padding:24px;text-align:center}
+.bonusbox.big{background:linear-gradient(140deg,#FFF6DE,#FFEFC7)}
+.bonusbox span{font-size:48px;display:block}
+.bonusbox b{font-size:34px;font-weight:900;letter-spacing:-1.5px;display:block;margin-top:8px;color:var(--grow-deep)}
+.bonusbox.big b{color:#B4740A}
+.bonusbox p{font-size:12.5px;color:var(--muted);font-weight:700;margin-top:8px;line-height:1.5}
+
+.capbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 16px 12px;
+  background:var(--blue-soft);border-radius:14px;padding:12px 15px;font-size:12.5px;font-weight:700;color:var(--blue-deep)}
+.capbar b{font-size:14px;font-weight:900}
+.capbar.full{background:var(--gold-soft);color:#8A5A00}
+.capbar.full b{font-size:11.5px;font-weight:700}
+
+/* ==== v8 ==== */
+.wq{display:inline-flex;align-items:center}
+.qmark{position:relative;top:0;vertical-align:middle}
+.lrow.done{opacity:1}
+.okchip{font-style:normal;background:var(--grow-soft);color:var(--grow-deep);border-radius:999px;
+  padding:5px 10px;font-size:11.5px;font-weight:800}
+/* 베스트 상품 스크롤 바 */
+.sbar{position:relative;height:5px;background:#E4E8EF;border-radius:99px;margin:12px 22px 0;overflow:hidden}
+.sbar i{position:absolute;top:0;height:100%;background:var(--blue);border-radius:99px;width:30%;left:0;
+  animation:swipehint 2.4s ease-in-out infinite}
+.sbar i.live{animation:none;transition:left .12s linear,width .12s linear}
+@keyframes swipehint{0%,100%{left:0}50%{left:70%}}
+/* 영상 스탬프 */
+.stamps{display:flex;align-items:center;justify-content:center;gap:0;margin:0 16px 4px;position:relative;padding:6px 30px}
+.stamps .sp{width:46px;height:46px;border-radius:50%;background:#fff;border:2px solid var(--line);
+  display:grid;place-items:center;font-size:16px;font-weight:900;color:var(--dim);z-index:2;box-shadow:var(--shadow)}
+.stamps .sp+.sp{margin-left:34px}
+.stamps .sp.on{background:var(--grow);border-color:var(--grow);color:#fff}
+.stamps .sp.gift{border-color:var(--gold);color:#B4740A}
+.stamps .sp.gift.on{background:var(--gold);border-color:var(--gold);color:#fff}
+.spline{position:absolute;left:53px;right:53px;top:50%;height:5px;background:#E4E8EF;border-radius:99px;
+  transform:translateY(-50%);z-index:1;overflow:hidden}
+.spline i{display:block;height:100%;background:var(--grow);border-radius:99px;transition:width .4s}
+/* 게임 자산 캐러셀 */
+.dropshow{overflow:hidden;margin:0 16px 12px;background:#fff;border-radius:16px;padding:12px 0;box-shadow:var(--shadow);
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);
+  mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.dsrow{display:flex;gap:26px;width:max-content;animation:dsslide 16s linear infinite;padding-left:26px}
+@keyframes dsslide{to{transform:translateX(-33.333%)}}
+.ds{display:flex;flex-direction:column;align-items:center;gap:6px;flex:0 0 auto}
+.ds b{font-size:11.5px;font-weight:800;color:var(--muted);white-space:nowrap}
+/* 뽑기 경품 */
+.gpool{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 16px}
+.gp{background:#fff;border-radius:16px;padding:14px 8px;text-align:center;box-shadow:var(--shadow);
+  border-top:3px solid var(--line)}
+.gp.t1{border-top-color:#8FB8FF}
+.gp.t2{border-top-color:var(--gold)}
+.gp .im{font-size:28px;display:block}
+.gp b{display:block;font-size:11.5px;font-weight:800;margin-top:7px;line-height:1.35}
+/* 만원 단위 입력 */
+.maninput{position:relative}
+.maninput .numin{padding-right:66px;text-align:right}
+.maninput .unit{position:absolute;right:18px;top:50%;transform:translateY(-50%);font-size:16px;
+  font-weight:800;color:var(--muted)}
+
+/* ==== v9 ==== */
+/* 물음표: 한 글자 정중앙 고정 */
+.qmark{display:inline-block !important;width:16px;height:16px;line-height:16px;text-align:center;
+  font-size:11px;font-weight:900;border-radius:50%;background:var(--blue);color:#fff;
+  margin-left:5px;vertical-align:middle;cursor:help;padding:0;position:static;flex:0 0 auto}
+.wq{display:inline-flex;align-items:center;line-height:1.2}
+.todaybar .between span,.asset-strip .a p,.sect-row .st-l b,.stakebar .stake,.cat-note .cn-t{
+  display:inline-flex;align-items:center}
+.cat-note{align-items:center}
+/* 베스트 상품 바: 움직이지 않는 정적 표시 */
+.sbar i{animation:none;left:0;width:34%;transition:left .12s linear,width .12s linear}
+/* 도지 */
+.coin.c5{background:linear-gradient(140deg,#F2DF9B,#C2A633)}
+
+
+/* ==== v10 ==== */
+/* 물음표는 어떤 부모 안에서도 흰 글자 유지 */
+.sect-t .qmark,.st-l .qmark,.st-l b .qmark,.wq .qmark,.cat-note .qmark,.qmark{
+  color:#fff !important;font-size:11px !important;font-weight:900 !important;background:var(--blue) !important}
+/* 카테고리 / 베스트 드래그 */
+.cats{cursor:grab;user-select:none}
+.cats.drag{cursor:grabbing}
+.sbar{cursor:pointer}
+.sbar.drag{cursor:grabbing}
+.sbar i{cursor:grab}
+/* 정렬 */
+.sorts{display:flex;gap:7px;padding:0 16px;margin-top:14px}
+.sortb{flex:1;border:none;background:#fff;border-radius:12px;padding:11px 0;font-family:inherit;
+  font-size:13px;font-weight:800;color:var(--muted);cursor:pointer;box-shadow:0 2px 6px rgba(30,50,90,.05)}
+.sortb.on{background:var(--blue);color:#fff}
+.prod .im .rkv{position:absolute;top:-6px;left:-6px;width:22px;height:22px;border-radius:50%;
+  background:var(--ink);color:#fff;font-size:11px;font-weight:900;display:grid;place-items:center}
+/* 고급 설정 */
+.dangerbox{background:#FDECEC;border-radius:14px;padding:14px 15px}
+.dangerbox b{font-size:13.5px;font-weight:800;color:#B42318;display:block}
+.dangerbox p{font-size:12.5px;font-weight:600;color:#B42318;opacity:.85;margin-top:6px;line-height:1.55}
+.risks{display:flex;flex-direction:column;gap:12px}
+.risks>div{display:flex;gap:11px;align-items:flex-start}
+.risks span{font-size:20px;flex:0 0 auto}
+.risks b{font-size:13.5px;font-weight:800;display:block}
+.risks p{font-size:12.5px;color:var(--muted);font-weight:600;margin-top:4px;line-height:1.55}
+.seedbox{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;background:#F7F9FC;border-radius:14px;
+  padding:14px;cursor:pointer;position:relative}
+.seedbox span{background:#fff;border-radius:9px;padding:8px 6px;font-size:12.5px;font-weight:800;
+  display:flex;align-items:center;gap:5px;justify-content:center}
+.seedbox span i{font-style:normal;font-size:10px;color:var(--dim);font-weight:700}
+.keybox{background:#F7F9FC;border-radius:14px;padding:15px;font-family:ui-monospace,monospace;
+  font-size:11.5px;font-weight:700;word-break:break-all;line-height:1.6;cursor:pointer;position:relative}
+.hidewrap{position:relative;cursor:pointer}
+.hidewrap.blur>.seedbox,.hidewrap.blur>.keybox{filter:blur(6px)}
+.hidewrap .cover{display:none}
+.hidewrap.blur .cover{display:grid;place-items:center;position:absolute;inset:0;font-size:13px;
+  font-weight:800;color:var(--ink);background:rgba(247,249,252,.5);border-radius:14px}
+
+</style>
+</head>
+<body>
+<div class="brandline">나드리 <small>· 프로토타입 v10</small></div>
+<div class="phone">
+  <div class="statusbar"><span id="clock">1:49</span><div class="notch" id="stepchip">0 걸음</div><span>••• 42</span></div>
+  <div class="screens" id="screens"></div>
+  <div class="tabbar hide" id="tabbar"></div>
+  <div class="mask" id="mask" onclick="closeSheet()"></div>
+  <div class="sheet" id="sheet"></div>
+  <div class="tipfloat" id="tipfloat"></div>
+  <div class="toast" id="toast"></div>
+</div>
+<script>
+/* ===== 상수 ===== */
+const RATE = 0.05, YEAR = 365 * 24 * 3600;
+const today = () => new Date().toDateString();
+/* 회차별 지급 범위. 3회차에 완주 보너스가 얹혀요. 5회 최대 합계 38P */
+const AD_R = [[3, 6], [4, 8], [8, 14], [2, 5], [2, 5]];
+const AD = { cap: AD_R.length, milestone: 3 };
+const DAILY_CAP = 200;
+/* 오늘의 보너스: 대부분 소액, 아주 가끔 큰 금액 */
+const BONUS_TBL = [[1,30],[2,25],[3,22],[5,12],[10,8],[50,2.2],[100,.5],[150,.2],[200,.08],[300,.02]];
+
+const S = {
+  nick: '나드리회원', addr: '0x7A3f9B21C4dE8f0a45B7c9E1D2380Fa6b19C4E27', upid: 'naduri7.up',
+  steps: 6432, goal: 10000, stepClaimed: false,
+  points: 30154, cash: 0,
+  pStake: 0, pEarn: 0, pToday: 0,
+  cStake: 0, cEarn: 0, cToday: 0,
+  dayStamp: today(),
+  attTotal: 6, attToday: false,
+  notif: true, push: false,
+  todayPoint: 0,
+  history: [],
+  bonusGot: [false, false, false],
+  adViews: 0, gamePlays: 0, gameAdReady: false, gameBest: 0,
+  quizPool: [], quizIdx: 0, quizSolved: 0, quizAnswered: null, quizLog: [],
+  rouletteUsed: false, rouletteBoost: false, rouletteAngle: 0, spinning: false,
+  gachaLog: [], gachaRolling: false, coupons: [],
+  surveyDone: false, surveyStep: 0, surveyAns: {},
+  invites: [{ n: '김**', st: 'paid' }, { n: '이**', st: 'join' }],
+  refCode: 'NADURI7', refUsed: false, refPromptSeen: false,
+  btc: 158400000, paxg: 4620000,
+  hold: { btc: 0, paxg: 0 },
+  withdrawals: [],
+  lastTick: Date.now(), cat: 'all', brand: null, sort: 'pop',
+  seed: '나드리 지갑 복구 구문 12단어', keyShown: false
+};
+
+/* ===== 물음표 도움말 ===== */
+const TIPS = {
+  today: `<b>오늘 모은 포인트</b>
+<p>걸음, 출석, 퀴즈, 영상처럼 매일 반복되는 활동으로 받은 포인트예요. 눌러보면 어떤 활동으로 얼마를 받았는지 시간순으로 볼 수 있어요.</p>
+<p>하루에 받을 수 있는 포인트에는 한도가 있어요. 한도를 채우면 그날은 더 이상 쌓이지 않고 다음 날 0부터 다시 시작해요.</p>
+<p class="warn">친구 초대로 받는 포인트는 이 한도에 들어가지 않아요. 초대한 만큼 따로 받아요.</p>`,
+  stake: `<b>이자 받는 포인트</b>
+<p>이자받기에 저금해 둔 포인트예요. 저금하는 순간부터 1초 단위로 이자가 붙어서, 가만히 두기만 해도 숫자가 계속 올라가요.</p>
+<p class="warn">언제든 그만 받고 꺼낼 수 있어요. 원금은 줄어들지 않아요.</p>`,
+  asset: `<b>내 자산</b>
+<p>포인트샵에서 포인트를 현금으로 바꿔도 여기에 쌓여요. 직접 입금한 돈도 여기로 들어와요.</p>
+<p>언제든 내 계좌로 출금할 수 있어요. 출금은 영업일 기준 1~3일이 걸려요.</p>
+<p class="warn">꼭 출금하지 않아도 돼요. 그대로 두고 저금하기를 누르면 원화 상태로도 이자를 받아요.</p>`,
+  interest: `<b>이자는 어디에서 생기나요</b>
+<p>나드리에 저금한 포인트와 원화는 업비트가 만든 레이어 2 블록체인인 GIWA 체인 위의 디파이 플랫폼에 예치돼요. 그곳에서 발생한 수익을 이자로 돌려드려요.</p>
+<p>보통 이런 상품을 이용하려면 지갑을 만들고, 가스비로 쓸 코인을 따로 사고, 네트워크를 골라 옮기는 과정을 거쳐야 해요.</p>
+<p>나드리는 그 절차를 대신 처리해요. 저금하기를 누르는 것만으로 접근할 수 있고, 가스비나 전송 수수료를 따로 낼 필요가 없어요.</p>
+<p class="warn">이자율은 시장 상황에 따라 달라질 수 있어요.</p>`,
+  addr: `<b>내 지갑 주소</b>
+<p>로그인할 때 나드리가 GIWA 체인 위에 자동으로 만들어 준 주소예요. 앱에서 산 비트코인과 금이 실제로 이 주소에 보관돼요.</p>
+<p>주소 대신 쓰는 짧은 이름도 함께 만들어져요. 친구에게 자산을 보낼 때 긴 주소를 옮겨 적지 않고 이 이름만 알려주면 돼요.</p>
+<p>다른 지갑이나 거래소로 자산을 옮길 때, 받은 자산이 제대로 들어왔는지 확인할 때 이 주소를 쓰면 돼요.</p>
+<p class="warn">주소는 남에게 알려줘도 안전해요. 다만 나드리 직원을 포함해 누구에게도 로그인 정보는 알려주지 마세요.</p>`
+};
+function qm(k) { return `<span class="qmark" data-tip="${k}">?</span>`; }
+function tipOpen(k) { openSheet(`<div class="tipbody">${TIPS[k] || ''}</div><button class="btn ghost mt16" onclick="closeSheet()">알겠어요</button>`); }
+/* 물음표에 마우스를 올리면 화면 안쪽으로 자동 배치돼요 */
+function showTip(el, k) {
+  const box = $('tipfloat'); if (!box || !TIPS[k]) return;
+  box.innerHTML = TIPS[k];
+  box.style.visibility = 'hidden'; box.style.display = 'block';
+  const ph = document.querySelector('.phone').getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  const bw = box.offsetWidth, bh = box.offsetHeight;
+  let left = r.left - ph.left + r.width / 2 - bw / 2;
+  left = Math.max(10, Math.min(left, ph.width - bw - 10));
+  let top = r.bottom - ph.top + 10;
+  if (top + bh > ph.height - 12) top = r.top - ph.top - bh - 10;
+  if (top < 10) top = 10;
+  box.style.left = left + 'px'; box.style.top = top + 'px'; box.style.visibility = 'visible';
+}
+function hideTip() { const b = $('tipfloat'); if (b) b.style.display = 'none'; }
+document.addEventListener('mouseover', e => { const q = e.target.closest && e.target.closest('.qmark'); if (q) showTip(q, q.dataset.tip); });
+document.addEventListener('mouseout', e => { const q = e.target.closest && e.target.closest('.qmark'); if (q) hideTip(); });
+document.addEventListener('click', e => {
+  const q = e.target.closest && e.target.closest('.qmark');
+  if (q) { e.stopPropagation(); e.preventDefault(); hideTip(); tipOpen(q.dataset.tip); }
+}, true);
+/* 하루 적립 한도 (걸음·출석·퀴즈·게임·영상에만 적용) */
+const capLeft = () => Math.max(0, DAILY_CAP - S.todayPoint);
+
+/* ===== OX 퀴즈 100세트 ===== */
+const QUIZ = [
+["예금자보호법으로 한 은행당 1인 5천만원까지 보호받아요.","O","2025년부터 1억원으로 상향됐지만 오랜 기간 5천만원 기준이었어요."],
+["신용점수는 카드를 아예 안 쓰면 무조건 올라가요.","X","거래 이력이 없으면 평가할 자료가 없어서 오히려 불리해요."],
+["체크카드도 소득공제를 받을 수 있어요.","O","체크카드 공제율이 신용카드보다 높아요."],
+["연 5% 이자면 100만원을 1년 두면 이자가 5만원이에요.","O","단리 기준으로 5만원이에요."],
+["복리는 이자에도 이자가 붙는 방식이에요.","O","기간이 길수록 단리와 차이가 커져요."],
+["ISA 계좌는 한 사람이 여러 개 만들 수 있어요.","X","전 금융기관 통틀어 1인 1계좌예요."],
+["국민연금은 소득이 없으면 무조건 못 내요.","X","임의가입으로 낼 수 있어요."],
+["청약통장은 매달 넣는 금액이 많을수록 무조건 유리해요.","X","공공분양은 월 최대 인정액이 정해져 있어요."],
+["환율이 오르면 해외여행 경비가 더 들어요.","O","같은 달러를 사는 데 원화가 더 필요해요."],
+["주식 배당금에도 세금이 붙어요.","O","배당소득세가 원천징수돼요."],
+["적금과 예금은 이자 계산 방식이 같아요.","X","적금은 넣은 기간만큼만 이자가 붙어요."],
+["카드 할부는 수수료가 없을 수도 있어요.","O","무이자 할부 행사면 수수료가 없어요."],
+["연말정산은 회사원만 하는 거예요.","O","프리랜서나 사업자는 종합소득세 신고를 해요."],
+["신용카드 현금서비스는 신용점수에 영향을 줘요.","O","단기 카드대출로 잡혀서 점수가 내려갈 수 있어요."],
+["보험은 중도 해지해도 낸 돈을 전부 돌려받아요.","X","해지환급금은 낸 돈보다 적은 경우가 많아요."],
+["햇살론은 저신용자를 위한 정책 서민금융 상품이에요.","O","서민금융진흥원이 지원해요."],
+["금리가 오르면 이미 발행된 채권 가격은 내려가요.","O","채권 가격과 금리는 반대로 움직여요."],
+["펀드는 원금이 보장돼요.","X","투자 상품이라 손실이 날 수 있어요."],
+["연금저축은 세액공제를 받을 수 있어요.","O","연간 한도 안에서 공제받아요."],
+["통장 비밀번호는 은행 직원이 물어볼 수 있어요.","X","어떤 경우에도 묻지 않아요. 물으면 사기예요."],
+["보이스피싱이 의심되면 112에 신고할 수 있어요.","O","금융감독원 1332도 함께 이용해요."],
+["명의를 빌려주는 것만으로도 처벌받을 수 있어요.","O","대포통장으로 쓰이면 형사처벌 대상이에요."],
+["ATM 인출 한도는 계좌마다 설정할 수 있어요.","O","은행 앱에서 조정할 수 있어요."],
+["모바일 상품권도 유효기간이 지나면 일부 환불받을 수 있어요.","O","잔액의 90%까지 환불 요청할 수 있어요."],
+["기프티콘은 유효기간 연장을 요청할 수 있어요.","O","대부분 3개월 단위로 연장돼요."],
+["소득이 없어도 신용카드를 만들 수 있어요.","X","일정 소득이나 담보가 필요해요."],
+["현금영수증은 소득공제에 포함돼요.","O","체크카드와 같은 공제율이에요."],
+["대출 중도상환수수료는 시간이 지나면 줄어들어요.","O","보통 3년에 걸쳐 줄어들다 사라져요."],
+["신용점수 조회를 자주 하면 점수가 떨어져요.","X","본인 조회는 점수에 영향이 없어요."],
+["주택청약 1순위 조건은 지역마다 달라요.","O","투기과열지구는 조건이 더 까다로워요."],
+["걷기는 유산소 운동에 해당돼요.","O","심박수를 올려주는 대표적인 유산소 운동이에요."],
+["하루 만보를 꼭 채워야 건강에 도움이 돼요.","X","7천보 전후부터 이미 효과가 나타나요."],
+["빈속에 걷는 게 항상 더 좋아요.","X","어지럼증이 올 수 있어 사람마다 달라요."],
+["걷기는 무릎 관절에 부담이 적은 편이에요.","O","달리기보다 충격이 훨씬 작아요."],
+["같은 거리를 걸어도 속도가 빠르면 열량 소모가 늘어요.","O","강도가 올라가면 소모량도 늘어요."],
+["물은 목마를 때만 마시면 충분해요.","X","갈증을 느끼면 이미 수분이 부족한 상태예요."],
+["계단 오르기는 평지 걷기보다 열량 소모가 커요.","O","중력을 거스르는 만큼 더 써요."],
+["스트레칭은 운동 전후 모두 도움이 돼요.","O","앞에는 동적, 뒤에는 정적 스트레칭이 좋아요."],
+["잠을 적게 자도 운동만 하면 괜찮아요.","X","회복은 수면 중에 일어나요."],
+["햇빛을 받으며 걸으면 비타민D 합성에 도움이 돼요.","O","하루 15분 정도면 충분해요."],
+["한국 표준시는 UTC보다 9시간 빨라요.","O","UTC+9예요."],
+["서울의 법정동은 모두 25개예요.","X","25개는 자치구 수예요."],
+["대한민국 최저임금은 매년 정해져요.","O","최저임금위원회가 결정해요."],
+["주 52시간은 연장근로를 포함한 숫자예요.","O","기본 40시간에 연장 12시간이에요."],
+["연차는 1년 미만 근무자도 쓸 수 있어요.","O","월 개근 시 1일씩 생겨요."],
+["실업급여는 자발적 퇴사면 원칙적으로 못 받아요.","O","정당한 사유가 인정되면 예외가 있어요."],
+["4대보험에 산재보험이 포함돼요.","O","국민연금 건강보험 고용보험 산재보험이에요."],
+["전입신고는 이사 후 14일 안에 해야 해요.","O","기한을 넘기면 과태료가 있어요."],
+["확정일자는 보증금을 지키는 데 도움이 돼요.","O","우선변제권을 얻는 요건이에요."],
+["전세보증금 반환보증은 세입자가 가입해요.","O","임차인이 직접 가입할 수 있어요."],
+["월세도 세액공제를 받을 수 있어요.","O","조건을 갖추면 연말정산에서 공제받아요."],
+["관리비에는 보통 수도요금이 포함돼요.","O","건물에 따라 별도인 경우도 있어요."],
+["등기부등본은 아무나 열람할 수 있어요.","O","수수료만 내면 누구나 볼 수 있어요."],
+["부동산 계약은 반드시 공인중개사를 통해야 해요.","X","직거래도 법적으로 가능해요."],
+["중개수수료는 법으로 상한이 정해져 있어요.","O","거래 금액 구간별 상한요율이 있어요."],
+["신용카드 포인트도 현금처럼 쓸 수 있어요.","O","카드사 앱에서 현금 전환이 가능해요."],
+["항공 마일리지는 유효기간이 있어요.","O","보통 10년이에요."],
+["간편결제도 소득공제 대상이 될 수 있어요.","O","연결된 결제수단 기준으로 잡혀요."],
+["교통카드 환승은 하차 태그를 해야 적용돼요.","O","안 찍으면 환승이 끊겨요."],
+["알뜰교통카드는 걷거나 자전거 탄 만큼 마일리지를 줘요.","O","이동 거리 기준으로 적립돼요."],
+["지하철 정기권은 버스 환승이 안 되는 경우가 있어요.","O","종류에 따라 달라요."],
+["택시 심야 할증은 지역마다 시간이 달라요.","O","지자체가 정해요."],
+["고속도로 통행료는 심야에 할인돼요.","O","화물차 대상 심야 할인이 있어요."],
+["전기차 충전요금은 시간대에 따라 달라질 수 있어요.","O","계절과 시간대 요금제가 있어요."],
+["대중교통비도 소득공제 대상이에요.","O","공제율이 더 높아요."],
+["비행기 수하물 규정은 항공사마다 달라요.","O","노선과 좌석 등급에 따라서도 달라요."],
+["여권 유효기간이 6개월 미만이면 입국을 거절당할 수 있어요.","O","많은 나라가 6개월 이상을 요구해요."],
+["해외에서 원화로 결제하면 더 유리해요.","X","이중 환전으로 수수료가 더 붙어요."],
+["면세 한도를 넘겼을 때 자진신고하면 세금을 깎아줘요.","O","자진신고 감면이 있어요."],
+["여행자보험은 출국 전에만 가입할 수 있어요.","O","출국 후에는 가입이 안 돼요."],
+["국제운전면허증은 발급일부터 1년간 유효해요.","O","국가별로 인정 조건이 달라요."],
+["환전은 은행 앱으로 미리 신청하면 우대받을 수 있어요.","O","환전 수수료를 크게 아껴요."],
+["신용카드 해외 결제에는 수수료가 붙어요.","O","브랜드 수수료와 해외이용 수수료가 있어요."],
+["ATM에서 해외 인출도 수수료가 있어요.","O","건당 수수료와 환전 수수료가 함께 붙어요."],
+["로밍보다 현지 유심이 항상 싸요.","X","기간과 사용량에 따라 달라요."],
+["휴대폰 데이터는 자정에 초기화돼요.","X","보통 요금제 기준일에 초기화돼요."],
+["와이파이 공유기는 위치에 따라 속도가 달라져요.","O","벽이나 거리 영향이 커요."],
+["공공 와이파이에서 금융 앱을 쓰는 건 안전해요.","X","보안 위험이 있어 피하는 게 좋아요."],
+["비밀번호는 사이트마다 다르게 쓰는 게 안전해요.","O","한 곳이 뚫려도 피해가 번지지 않아요."],
+["2단계 인증은 계정 보안을 크게 높여줘요.","O","비밀번호가 유출돼도 막아줘요."],
+["출처를 모르는 링크는 열지 않는 게 좋아요.","O","스미싱의 대표적인 경로예요."],
+["앱 권한은 필요한 것만 허용하는 게 좋아요.","O","불필요한 접근을 줄여줘요."],
+["개인정보 유출이 의심되면 명의도용 방지 서비스를 쓸 수 있어요.","O","금융결제원 등에서 제공해요."],
+["중고거래 사기는 경찰청 사이트에서 계좌를 조회할 수 있어요.","O","사이버범죄 신고시스템에서 확인해요."],
+["안전결제를 유도하는 링크는 항상 믿을 만해요.","X","가짜 결제창 사기가 많아요."],
+["플라스틱은 내용물을 비우고 배출해야 해요.","O","이물질이 있으면 재활용이 어려워요."],
+["종이컵은 종이류로 배출하면 돼요.","X","내부 코팅 때문에 따로 배출해요."],
+["아이스팩 내용물은 하수구에 버리면 안 돼요.","O","고흡수성 수지는 그대로 버려요."],
+["배달 용기는 헹궈서 버리면 재활용될 수 있어요.","O","오염이 심하면 일반쓰레기예요."],
+["형광등은 일반쓰레기로 버려도 돼요.","X","전용 수거함에 버려요."],
+["폐건전지는 따로 모아서 버려야 해요.","O","전용 수거함이 있어요."],
+["음식물 쓰레기에 뼈는 넣으면 안 돼요.","O","사료로 못 만들어서 일반쓰레기예요."],
+["텀블러를 쓰면 카페에서 할인받을 수 있어요.","O","대부분 매장이 할인해줘요."],
+["장바구니 사용은 비닐봉투 사용을 줄여줘요.","O","반복해서 쓸수록 효과가 커요."],
+["대중교통 이용은 자가용보다 1인당 탄소 배출이 적어요.","O","같은 거리 기준으로 훨씬 적어요."],
+["실내 적정 온도는 여름철 26도 전후예요.","O","냉방비 절감에도 도움이 돼요."],
+["대기전력도 전기요금에 포함돼요.","O","플러그를 뽑으면 줄일 수 있어요."],
+["LED 조명은 백열등보다 전기를 적게 써요.","O","같은 밝기에서 소비전력이 훨씬 낮아요."],
+["세탁기는 찬물로 돌리면 전기를 아낄 수 있어요.","O","물 데우는 데 전기가 가장 많이 들어요."],
+["냉장고는 가득 채울수록 전기를 아껴요.","X","냉장실은 60% 정도가 효율적이에요."],
+["에어컨 필터 청소는 냉방 효율을 높여줘요.","O","2주에 한 번이 권장돼요."]
+];
+
+/* ===== 설문 (YC How to talk to users / The Mom Test) ===== */
+const SURVEY = [
+  { t: 'sean', q: '내일부터 나드리를 못 쓰게 된다면 어떤 기분일까요?', h: '솔직하게 골라주세요. 아무렇지 않다고 답해도 괜찮아요.', o: ['매우 아쉬워요', '조금 아쉬워요', '아무렇지 않아요'] },
+  { t: 'open', q: '나드리를 마지막으로 연 게 언제였고, 그때 뭘 하려고 열었나요?', h: '기억나는 대로 그때 상황을 적어주세요.', ph: '예: 어제 퇴근길 지하철에서 걸음 포인트 받으려고 열었어요' },
+  { t: 'pick', q: '나드리를 쓰기 전에는 그 일을 어떻게 하고 있었나요?', h: '지금 쓰는 다른 방법이 있다면 그걸 골라주세요.', o: ['다른 앱테크 앱을 썼어요', '은행이나 증권 앱을 썼어요', '아무것도 안 했어요', '그 밖의 방법'] },
+  { t: 'open', q: '포인트를 모으는 과정에서 제일 번거로운 부분은 무엇인가요?', h: '가장 귀찮았던 한 가지만 적어주세요.', ph: '예: 매번 앱을 열어서 눌러야 하는 게 귀찮아요' },
+  { t: 'open', q: '그게 번거로웠던 가장 최근 상황을 알려주세요.', h: '언제, 어디서, 무엇을 하다가 그랬는지 구체적으로 적어주세요.', ph: '예: 지난 금요일 야근하고 집에 와서 깜빡했어요' },
+  { t: 'pick', q: '그 문제를 해결하려고 뭔가 시도해 본 적이 있나요?', h: '알림 설정, 다른 앱 사용, 습관 만들기 등 무엇이든 좋아요.', o: ['해봤어요', '해보려다 말았어요', '해본 적 없어요'] },
+  { t: 'open', q: '지금 쓰는 방법에서 마음에 안 드는 점은 무엇인가요?', h: '나드리가 아니어도 괜찮아요. 다른 앱 얘기도 좋아요.', ph: '예: 포인트가 쌓이는 속도에 비해 살 수 있는 게 비싸요' },
+  { t: 'pick', q: '이자받기 기능은 어느 정도 이해가 됐나요?', h: '이해가 안 됐다고 답해도 불이익이 없어요.', o: ['무슨 기능인지 정확히 알겠어요', '대충은 알겠어요', '아직 잘 모르겠어요', '써본 적 없어요'] },
+  { t: 'open', q: '친구에게 나드리를 한 문장으로 설명한다면 뭐라고 하시겠어요?', h: '평소 쓰는 말투 그대로 적어주세요.', ph: '예: 걸으면 포인트 주는데 그 포인트가 이자도 붙는 앱' },
+  { t: 'pick', q: '10분 정도 통화로 더 자세히 이야기 나눠주실 수 있나요?', h: '참여해 주시면 별도로 연락드릴게요.', o: ['좋아요, 연락 주세요', '지금은 어려워요'] }
+];
+
+/* ===== 나드리 뽑기 ===== */
+const GACHA_COST = 100;
+const GACHA = [
+  { n: '신세계상품권 1만원권', e: '🎫', w: 10000, rate: 0.0008, tier: 1 },
+  { n: '배민상품권 1만원권', e: '🛵', w: 10000, rate: 0.0008, tier: 1 },
+  { n: '파리바게뜨 금액권 1만원권', e: '🥐', w: 10000, rate: 0.0008, tier: 1 },
+  { n: '신세계상품권 5만원권', e: '🏬', w: 50000, rate: 0.00012, tier: 2 },
+  { n: '현금 5만원', e: '💵', w: 50000, rate: 0.00012, tier: 2 },
+  { n: '비트코인 5만원어치', e: '₿', w: 50000, rate: 0.00012, tier: 2 }
+];
+
+/* ===== 포인트샵 ===== */
+const SHOP = {
+  asset: { label: '자산',
+    note: '나드리가 첫걸음이 되어드려요.',
+    tip: `<b>포인트로 살 수 있는 자산</b>
+<p><b>비트코인(BTC)</b><br>발행량이 2,100만 개로 정해진 디지털 자산이에요. 원하는 금액만큼 조각으로 사고, 업비트 오라클 시세를 그대로 따라가요.</p>
+<p><b>금(PAXG)</b><br>런던 금고에 실제로 보관된 금괴에 1대1로 연결된 토큰이에요. 1 PAXG가 금 1온스(31.1g)예요. 금값이 오르면 그대로 따라 올라요.</p>
+<p><b>토큰화 주식</b><br>미국 주식과 ETF를 조각으로 담는 상품이에요. 지금은 준비 중이고 순차적으로 열려요.</p>
+<p class="warn">실물 금 배송은 지원하지 않아요. 하지만 금 매매에 나가는 수수료도 없어요.</p>`,
+    brands: [{ id: 'btc', n: '비트코인', c: '#F7931A', t: '₿' }, { id: 'paxg', n: '금 PAXG', c: '#C9A227', t: 'Au' }],
+    items: [
+      { b: 'btc', br: '비트코인', n: '비트코인 10,000원어치', p: 17800, cnt: 33940, e: '₿', won: 10000, live: 'btc' },
+      { b: 'btc', br: '비트코인', n: '비트코인 30,000원어치', p: 53000, cnt: 21877, e: '₿', won: 30000, live: 'btc' },
+      { b: 'btc', br: '비트코인', n: '비트코인 50,000원어치', p: 87000, cnt: 12604, e: '₿', won: 50000, live: 'btc' },
+      { b: 'paxg', br: '금 PAXG', n: '금 10,000원어치', p: 17800, cnt: 28715, e: '🥇', won: 10000, live: 'paxg' },
+      { b: 'paxg', br: '금 PAXG', n: '금 30,000원어치', p: 53000, cnt: 15980, e: '🥇', won: 30000, live: 'paxg' },
+      { b: 'paxg', br: '금 PAXG', n: '금 50,000원어치', p: 87000, cnt: 9422, e: '🥇', won: 50000, live: 'paxg' }]
+  },
+  voucher: { label: '상품권',
+    note: '매장에서 바로 쓰는 모바일 교환권이에요.',
+    brands: [{ id: 'npay', n: '네이버페이', c: '#03C75A', t: 'N' }, { id: 'ssg', n: '신세계', c: '#E60012', t: '❋' },
+    { id: 'lotte', n: '롯데모바일', c: '#8B7355', t: 'L' }, { id: 'baemin', n: '배달의민족', c: '#2AC1BC', t: '배민' },
+    { id: 'daiso', n: '다이소', c: '#E4002B', t: '다이소' }],
+    items: [
+      { b: 'ssg', br: '신세계', n: '신세계상품권 모바일교환권 10,000원 (이마트 교환전용)', p: 17900, cnt: 80167, e: '🎫', tag: '₩1만', won: 10000 },
+      { b: 'ssg', br: '신세계', n: '신세계상품권 모바일교환권 30,000원 (이마트 교환전용)', p: 50000, cnt: 60253, e: '🎫', tag: '₩3만', won: 30000 },
+      { b: 'ssg', br: '신세계', n: '신세계상품권 모바일교환권 50,000원 (이마트 교환전용)', p: 82000, cnt: 57771, e: '🎫', tag: '₩5만', won: 50000 },
+      { b: 'npay', br: '네이버페이', n: '네이버페이 상품권 10,000원권', p: 17800, cnt: 63410, e: '🅽', tag: '₩1만', won: 10000 },
+      { b: 'npay', br: '네이버페이', n: '네이버페이 상품권 30,000원권', p: 50000, cnt: 52494, e: '🅽', tag: '₩3만', won: 30000 },
+      { b: 'lotte', br: '롯데모바일', n: '롯데백화점 모바일 상품권 10,000원권', p: 17900, cnt: 24310, e: '🏬', tag: '₩1만', won: 10000 },
+      { b: 'baemin', br: '배달의민족', n: '배민상품권 10,000원권', p: 17600, cnt: 48022, e: '🛵', tag: '₩1만', won: 10000 },
+      { b: 'daiso', br: '다이소', n: '다이소 모바일 금액권 10,000원권', p: 17700, cnt: 30117, e: '🛍️', tag: '₩1만', won: 10000 }]
+  },
+  cash: { label: '현금',
+    note: '신청한 만큼 내 지갑으로 현금이 들어와요.',
+    brands: [{ id: 'cash', n: '현금', c: '#4B5563', t: '💵' }],
+    items: [
+      { b: 'cash', br: '현금', n: '내 지갑으로 15,000원 받기', p: 29900, cnt: 266240, e: '💵', tag: '₩1.5만', won: 15000, toCash: 1 },
+      { b: 'cash', br: '현금', n: '내 지갑으로 25,000원 받기', p: 48900, cnt: 71322, e: '💵', tag: '₩2.5만', won: 25000, toCash: 1 },
+      { b: 'cash', br: '현금', n: '내 지갑으로 35,000원 받기', p: 65900, cnt: 33062, e: '💵', tag: '₩3.5만', won: 35000, toCash: 1 },
+      { b: 'cash', br: '현금', n: '내 지갑으로 45,000원 받기', p: 82900, cnt: 100197, e: '💵', tag: '₩4.5만', won: 45000, toCash: 1 }]
+  },
+  meal: { label: '식사',
+    note: '나드리로 한끼 식사를 해보세요',
+    brands: [{ id: 'kyochon', n: '교촌치킨', c: '#F5C518', t: 'kyo' }, { id: 'bbq', n: 'BBQ', c: '#E4002B', t: 'BBQ' },
+    { id: 'bhc', n: 'BHC', c: '#111827', t: 'bhc' }, { id: 'goobne', n: '굽네치킨', c: '#DA291C', t: '굽네' },
+    { id: 'mcd', n: '맥도날드', c: '#DA291C', t: 'M' }, { id: 'lotteria', n: '롯데리아', c: '#E4002B', t: 'LOT' },
+    { id: 'moms', n: '맘스터치', c: '#F59E0B', t: "MOM'S" }],
+    items: [
+      { b: 'kyochon', br: '교촌치킨', n: '교촌오리지날 + 콜라 1.25L', mv: 23000, p: 35500, cnt: 8861, e: '🍗' },
+      { b: 'kyochon', br: '교촌치킨', n: '허니오리지날 + 콜라 1.25L', mv: 23000, p: 35500, cnt: 6548, e: '🍗' },
+      { b: 'kyochon', br: '교촌치킨', n: '반반오리지날 + 콜라 1.25L', mv: 24000, p: 37100, cnt: 5659, e: '🍗' },
+      { b: 'kyochon', br: '교촌치킨', n: '레드오리지날 + 콜라 1.25L', mv: 24000, p: 37100, cnt: 4147, e: '🍗' },
+      { b: 'kyochon', br: '교촌치킨', n: '교촌순살 + 콜라 1.25L', mv: 26000, p: 40400, cnt: 4787, e: '🍗' },
+      { b: 'bbq', br: 'BBQ', n: '황금올리브치킨 + 콜라 1.25L', mv: 24000, p: 36900, cnt: 12044, e: '🍗' },
+      { b: 'bhc', br: 'BHC', n: '뿌링클 + 콜라 1.25L', mv: 23000, p: 36400, cnt: 15320, e: '🍗' },
+      { b: 'goobne', br: '굽네치킨', n: '고추바사삭 + 콜라 1.25L', mv: 21000, p: 34800, cnt: 7712, e: '🍗' },
+      { b: 'mcd', br: '맥도날드', n: '불고기 버거 세트', mv: 6000, p: 9500, cnt: 17895, e: '🍔' },
+      { b: 'mcd', br: '맥도날드', n: '맥치킨 세트', mv: 6300, p: 9700, cnt: 14463, e: '🍔' },
+      { b: 'mcd', br: '맥도날드', n: '더블 불고기 버거 세트', mv: 7500, p: 11800, cnt: 14620, e: '🍔' },
+      { b: 'mcd', br: '맥도날드', n: '빅맥 세트', mv: 8300, p: 13200, cnt: 12097, e: '🍔' },
+      { b: 'mcd', br: '맥도날드', n: '맥스파이시 상하이버거 세트', mv: 8500, p: 13300, cnt: 11584, e: '🍔' },
+      { b: 'lotteria', br: '롯데리아', n: '불고기버거 세트', mv: 6000, p: 9300, cnt: 8804, e: '🍔' },
+      { b: 'moms', br: '맘스터치', n: '싸이버거 세트', mv: 6300, p: 9900, cnt: 10256, e: '🍔' }]
+  },
+  dessert: { label: '디저트',
+    note: '카페와 베이커리 교환권이에요.',
+    brands: [{ id: 'mega', n: '메가MGC', c: '#FFD400', t: 'MGC' }, { id: 'twosome', n: '투썸플레이스', c: '#111827', t: 'A+' },
+    { id: 'paik', n: '빽다방', c: '#FFE100', t: '빽' }, { id: 'ediya', n: '이디야커피', c: '#0B2C6F', t: 'E' },
+    { id: 'gongcha', n: '공차', c: '#8B1F2B', t: '貢' }, { id: 'pb', n: '파리바게뜨', c: '#1B3A93', t: 'B' },
+    { id: 'tlj', n: '뚜레쥬르', c: '#0E4F3C', t: 'TLJ' }, { id: 'kk', n: '크리스피크림', c: '#0B6E4F', t: 'KK' },
+    { id: 'dunkin', n: '던킨도너츠', c: '#F5821F', t: 'DD' }],
+    items: [
+      { b: 'mega', br: '메가 MGC 커피', n: '(HOT) 아메리카노', mv: 1500, p: 2900, cnt: 113528, e: '☕' },
+      { b: 'mega', br: '메가 MGC 커피', n: '(ICE) 아메리카노', mv: 2000, p: 3400, cnt: 203179, e: '🧋' },
+      { b: 'paik', br: '빽다방', n: '(ICE) 아메리카노', mv: 2000, p: 3300, cnt: 88410, e: '🧋' },
+      { b: 'ediya', br: '이디야커피', n: '(ICE) 아메리카노', mv: 3200, p: 4200, cnt: 60931, e: '🧋' },
+      { b: 'twosome', br: '투썸플레이스', n: '카페 라떼 (R)', mv: 5500, p: 8700, cnt: 46561, e: '☕' },
+      { b: 'twosome', br: '투썸플레이스', n: '딸기 생크림 피스', mv: 7300, p: 10500, cnt: 35138, e: '🍰' },
+      { b: 'twosome', br: '투썸플레이스', n: '떠먹는 티라미수', mv: 7500, p: 11000, cnt: 37760, e: '🍮' },
+      { b: 'gongcha', br: '공차', n: '블랙 밀크티 (M)', mv: 5000, p: 8200, cnt: 29477, e: '🧋' },
+      { b: 'pb', br: '파리바게뜨', n: '모바일 금액권 5천원권', p: 8400, cnt: 35730, e: '🥐', tag: '₩5천', won: 5000 },
+      { b: 'pb', br: '파리바게뜨', n: '모바일 금액권 1만원권', p: 16200, cnt: 32179, e: '🥐', tag: '₩1만', won: 10000 },
+      { b: 'pb', br: '파리바게뜨', n: '실키롤케익', mv: 13000, p: 21800, cnt: 14666, e: '🍥' },
+      { b: 'pb', br: '파리바게뜨', n: '명가명품 제주말차 카스테라', mv: 14000, p: 23300, cnt: 12916, e: '🍵' },
+      { b: 'pb', br: '파리바게뜨', n: '명가명품 우리벌꿀 카스테라', mv: 14000, p: 23300, cnt: 10803, e: '🍯' },
+      { b: 'tlj', br: '뚜레쥬르', n: '모바일 금액권 5천원권', p: 8400, cnt: 21044, e: '🥖', tag: '₩5천', won: 5000 },
+      { b: 'kk', br: '크리스피크림', n: '오리지널 글레이즈드 6개', mv: 13000, p: 14900, cnt: 18327, e: '🍩' },
+      { b: 'dunkin', br: '던킨도너츠', n: '도넛 6개 세트', mv: 12000, p: 15400, cnt: 16011, e: '🍩' }]
+  },
+  cvs: { label: '편의점',
+    note: '가까운 편의점에서 바코드로 바로 교환해요.',
+    brands: [{ id: 'cu', n: 'CU', c: '#6B2E8F', t: 'CU' }, { id: 'gs', n: 'GS25', c: '#00A5E3', t: 'GS' }],
+    items: [
+      { b: 'gs', br: 'GS25', n: '삼양) 까르보불닭볶음면 (대컵)', mv: 1800, p: 3000, cnt: 54355, e: '🍜' },
+      { b: 'gs', br: 'GS25', n: '코카콜라 제로 PET 500ML', mv: 2200, p: 4000, cnt: 36094, e: '🥤' },
+      { b: 'gs', br: 'GS25', n: '롯데) ABC초코 72G', mv: 3500, p: 5700, cnt: 39222, e: '🍫' },
+      { b: 'gs', br: 'GS25', n: '큐원) 상쾌환 부스터 100ml', mv: 5000, p: 8400, cnt: 34912, e: '🧃' },
+      { b: 'gs', br: 'GS25', n: '모바일 상품권 5천원권', p: 8400, cnt: 68538, e: '🎫', tag: '₩5천', won: 5000 },
+      { b: 'cu', br: 'CU', n: '모바일 상품권 5천원권', p: 8400, cnt: 59120, e: '🎫', tag: '₩5천', won: 5000 },
+      { b: 'cu', br: 'CU', n: '연세우유 생크림빵', mv: 3800, p: 6300, cnt: 41288, e: '🥯' },
+      { b: 'cu', br: 'CU', n: '델라페 아이스컵 + 커피', mv: 2300, p: 3600, cnt: 47901, e: '🧊' }]
+  }
+};
+for (const k in SHOP) if (SHOP[k].tip) TIPS['cat_' + k] = SHOP[k].tip;
+const ALL_ITEMS = () => Object.values(SHOP).flatMap(c => c.items);
+/* 1,000P로 얼마어치를 받는지 */
+const valueOf = (it) => ((it.mv || it.won || 0) / it.p) * 1000;
+const CATS = [['all', '전체'], ['asset', '자산'], ['voucher', '상품권'], ['cash', '현금'], ['meal', '식사'], ['dessert', '디저트'], ['cvs', '편의점']];
+
+/* ===== 실시간 후기 ===== */
+const REVIEWS = [
+  ['🐷', '#DEF7EC', '아침마다 뒷산 한 바퀴 도는데 커피값이 나오네요', '메가 MGC 커피 · 3분 전'],
+  ['🍗', '#FEF0D5', '아들내미 치킨 사줬습니다 걸어서 번 돈으로요', '교촌치킨 · 11분 전'],
+  ['👟', '#E8EFFE', '출퇴근에 두 정거장 걸었더니 한 달에 이만원이 모였습니다', '현금 15,000원 · 24분 전'],
+  ['🍔', '#FDECEC', '점심값 굳었다니까 동료들이 다들 깔더라구요', '맥도날드 빅맥 세트 · 32분 전'],
+  ['🎫', '#E8EFFE', '손주 용돈은 이걸로 챙겨줍니다', '신세계상품권 3만원 · 41분 전'],
+  ['🌱', '#DEF7EC', '늦게 시작했는데 이자 붙는 재미가 쏠쏠하네요', '이자받기 · 55분 전'],
+  ['🥐', '#FEF0D5', '집사람이랑 같이 걷습니다 은근히 경쟁이 되네요', '파리바게뜨 · 1시간 전'],
+  ['🥇', '#FEF0D5', '금은 조금씩 사 모으는 재미로 하고 있습니다', '금 10,000원어치 · 1시간 전']
+];
+
+/* ===== 유틸 ===== */
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Math.floor(n).toLocaleString('ko-KR');
+const fmtd = (n, d) => n.toLocaleString('ko-KR', { minimumFractionDigits: d, maximumFractionDigits: d });
+/* 포인트는 소수점도 가질 수 있어요 */
+const fmtP = (n) => Number.isInteger(+n.toFixed(4)) ? fmt(n) : n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+const won = (n) => fmt(n) + '원';
+let toastT;
+function toast(msg) {
+  const t = $('toast'); t.innerHTML = msg; t.classList.add('on');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2200);
+}
+function openSheet(html) { $('sheet').innerHTML = '<div class="hb"></div>' + html; $('sheet').classList.add('on'); $('mask').classList.add('on'); }
+function closeSheet() { $('sheet').classList.remove('on'); $('mask').classList.remove('on'); }
+const pTotal = () => S.pStake + S.pEarn;
+const cTotal = () => S.cStake + S.cEarn;
+const pPerSec = () => S.pStake * RATE / YEAR;
+const cPerSec = () => S.cStake * RATE / YEAR;
+const holdWon = () => S.hold.btc * S.btc + S.hold.paxg * S.paxg;
+const netWorth = () => S.points * 0.55 + pTotal() * 0.55 + S.cash + cTotal() + holdWon();
+function adReward() {
+  const r = AD_R[S.adViews]; if (!r) return 0;
+  return r[0] + Math.floor(Math.random() * (r[1] - r[0] + 1));
+}
+const adLeft = () => Math.max(0, AD.cap - S.adViews);
+const SEED = ['walnut','harbor','velvet','pledge','orchid','tunnel','marble','summit','ribbon','ferry','glance','oxygen'];
+const PRIVKEY = '0x4c8f2a91d63b70e5aa1c48f0937de625b8143c7a09fe52d6b17c4a80e3f96d21';
+
+/* ===== 라우터 ===== */
+const TABS = [['home', '홈', '🏠'], ['benefit', '혜택', '🎁'], ['interest', '이자받기', '🌱'],
+['shop', '포인트샵', '🛍️'], ['wallet', '내 지갑', '👛'], ['me', '내정보', '👤']];
+const TABIDS = TABS.map(t => t[0]);
+/* 하위 화면은 어느 탭에 속하는지 */
+const PARENT = { attend: 'benefit', bonus: 'benefit', video: 'benefit', game: 'benefit', gacha: 'benefit',
+  roulette: 'benefit', quiz: 'benefit', survey: 'benefit', invite: 'benefit',
+  grow: 'interest', deposit: 'interest', coupons: 'wallet', history: 'home' };
+const activeTab = () => PARENT[cur] || cur;
+let cur = 'onboard', curOpt = null, stack = [], scrollMem = {};
+const V = {}, POST = {};
+
+function nav(id, opt, noPush, restore) {
+  if (window.cleanup) { try { window.cleanup(); } catch (e) { } window.cleanup = null; }
+  const box = $('screens'), old = box.firstChild, same = (id === cur);
+  if (old) scrollMem[cur] = old.scrollTop;
+  if (!noPush && cur && !same) stack.push([cur, curOpt]);
+  if (TABIDS.includes(id) && !same) stack = [];
+  curOpt = opt;
+  const sc = document.createElement('div');
+  sc.className = 'screen' + (id === 'onboard' ? ' noTab' : '');
+  sc.innerHTML = (V[id] || (() => '<div class="pad mt24">준비 중이에요</div>'))(opt);
+  box.innerHTML = ''; box.appendChild(sc);
+  if (same || restore) sc.scrollTop = scrollMem[id] || 0;
+  requestAnimationFrame(() => sc.classList.add('on'));
+  cur = id;
+  $('tabbar').classList.toggle('hide', id === 'onboard');
+  renderTabs();
+  if (POST[id]) POST[id](opt);
+  tick();
+}
+function back() { const p = stack.pop(); if (p) nav(p[0], p[1], true, true); else nav('home', null, true, true); }
+function renderTabs() {
+  $('tabbar').innerHTML = TABS.map(([id, n, ic]) =>
+    `<button class="tab ${activeTab() === id ? 'on' : ''}" onclick="nav('${id}')"><span class="ic">${ic}</span>${n}</button>`).join('');
+}
+const head = (t, showBack = true) =>
+  `<div class="shead">${showBack ? `<button class="backb" onclick="back()">‹</button>` : '<div class="spacer"></div>'}<h2>${t}</h2><div class="spacer"></div></div>`;
+
+/* ===== 온보딩 ===== */
+V.onboard = () => `
+<div style="height:100%;display:flex;flex-direction:column;padding:0 26px 30px">
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center">
+    <div class="ob-sub">열린 금융을 향한 발걸음</div>
+    <div class="ob-logo">나드리</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px;padding-bottom:20px">
+    <button class="ob-btn" onclick="login('이메일')"><span class="lg mail">✉</span>이메일로 계속하기</button>
+    <button class="ob-btn" onclick="login('구글')"><span class="lg" style="background:#fff;border:1px solid #E5E7EB;color:#4285F4">G</span>구글로 계속하기</button>
+    <button class="ob-btn toss" onclick="login('토스')"><span class="lg toss">t</span>toss로 계속하기</button>
+    <button class="linkb" onclick="refSheet()">추천인 코드가 있어요</button>
+  </div>
+</div>`;
+function login(k) { toast(k + '(으)로 로그인했어요'); setTimeout(() => { nav('home'); if (!S.refUsed && !S.refPromptSeen) setTimeout(refSheet, 700); }, 450); }
+
+function refSheet() {
+  S.refPromptSeen = true;
+  if (S.refUsed) return openSheet(`<h3>이미 추천인 코드를 넣었어요</h3><p class="sub">한 계정에 한 번만 넣을 수 있어요</p>
+    <button class="btn ghost mt16" onclick="closeSheet()">닫기</button>`);
+  openSheet(`<h3>추천인 코드를 넣어보세요</h3>
+  <p class="sub">코드를 넣으면 나도 500P, 초대한 친구도 500P를 받아요</p>
+  <input class="numin mt16" id="refin" type="text" placeholder="예: NADURI7" style="font-size:19px;letter-spacing:2px;text-transform:uppercase">
+  <button class="btn pri mt16" onclick="useRef()">코드 등록하기</button>
+  <button class="btn ghost mt8" onclick="closeSheet()">나중에 할게요</button>
+  <p class="tiny muted center mt16" style="line-height:1.6">가입하고 첫 걸음을 적립하면 양쪽 모두에게 지급돼요.<br>초대 포인트는 하루 적립 한도에 들어가지 않아요.</p>`);
+}
+function useRef() {
+  const v = ($('refin').value || '').trim().toUpperCase();
+  if (v.length < 4) return toast('코드를 정확히 입력해주세요');
+  S.refUsed = true; closeSheet();
+  addPoint(500, `추천인 ${v} 코드 등록`, { noDaily: 1 });
+  nav(cur, curOpt, true);
+}
+
+/* ===== 홈 ===== */
+const claimable = () => S.stepClaimed ? 0 : Math.floor(S.steps / 100);
+const iconBtn = 'width:36px;height:36px;border-radius:12px;border:none;background:#fff;box-shadow:0 2px 8px rgba(30,50,90,.06);font-size:16px;cursor:pointer';
+
+V.home = () => {
+  const C = 2 * Math.PI * 95, prog = Math.min(1, S.steps / S.goal);
+  return `
+<div class="pad" style="padding-top:8px">
+  <div class="between">
+    <div class="pill" onclick="nav('shop')"><i class="pc">P</i><span id="h-points">${fmtP(S.points)}</span></div>
+    <div class="row" style="gap:6px">
+      <button style="${iconBtn}" onclick="toggleNotif()" id="h-bell">${S.notif ? '🔔' : '🔕'}</button>
+      <button style="${iconBtn}" onclick="nav('me')">👤</button>
+    </div>
+  </div>
+  <div class="between mt12">
+    <span class="chip" onclick="nav('attend')">🔥 <span id="h-streak">${S.attTotal}</span>일 연속 걷는 중</span>
+    <span class="tiny muted b">☀️ 서울 송파구 · 25.6°</span>
+  </div>
+</div>
+
+<div class="hero mt12">
+  <div class="ring-wrap">
+    <svg width="214" height="214">
+      <circle cx="107" cy="107" r="95" stroke="#EDEFF4" stroke-width="17" fill="none"/>
+      <circle cx="107" cy="107" r="95" stroke="var(--blue)" stroke-width="17" fill="none" stroke-linecap="round"
+        stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - prog)}" style="transition:stroke-dashoffset .6s cubic-bezier(.3,1,.4,1)"/>
+    </svg>
+    <div class="ring-c"><div class="lab">오늘의 걸음</div><div class="num">${fmt(S.steps)}</div><div class="goal">목표 ${fmt(S.goal)}</div></div>
+  </div>
+  <div class="stat2">
+    <div><b>${Math.round(S.steps * .0687)}<i>kcal</i></b><p>태운 열량</p></div>
+    <div><b>${(S.steps * .00064).toFixed(1)}<i>km</i></b><p>걸은 거리</p></div>
+  </div>
+</div>
+
+<div class="claim">
+  <div class="l"><p>걸어서 받을 포인트</p><b id="h-claim">${fmt(claimable())}P</b></div>
+  <button id="h-claimb" onclick="claimSteps()" ${claimable() ? '' : 'disabled'}>${S.stepClaimed ? '받았어요' : '받기'}</button>
+</div>
+
+<button class="todaybar" onclick="nav('history')">
+  <div class="between tiny b" style="margin-bottom:7px">
+    <span class="muted wq">오늘 모은 포인트 ${qm('today')}</span>
+    <span id="h-tp">${fmt(S.todayPoint)} / ${fmt(DAILY_CAP)}P</span>
+  </div>
+  <div class="pbar g"><i id="h-tpbar" style="width:${Math.min(100, S.todayPoint / DAILY_CAP * 100)}%"></i></div>
+</button>
+
+<div class="asset-strip">
+  <button class="a" onclick="nav('grow')"><p class="wq">이자 받는 포인트 ${qm('stake')}</p><b id="h-stake">${fmtd(pTotal(), 2)}P</b></button>
+  <button class="a" onclick="nav('grow')"><p class="wq">내 자산 ${qm('asset')}</p><b id="h-asset">${won(S.cash + cTotal())}</b></button>
+</div>
+
+<div class="quick">
+  <button class="qb" onclick="nav('attend')"><span class="ic" style="background:var(--blue-soft)">📅</span><span>출석체크</span>${S.attToday ? '' : '<i class="dot"></i>'}</button>
+  <button class="qb" onclick="nav('bonus')"><span class="ic" style="background:var(--gold-soft)">💰</span><span>보너스</span>${S.bonusGot.every(b => b) ? '' : '<i class="dot"></i>'}</button>
+  <button class="qb" onclick="nav('quiz')"><span class="ic" style="background:#FDECEC">🧠</span><span>OX퀴즈</span>${S.quizIdx >= 5 ? '' : '<i class="dot"></i>'}</button>
+  <button class="qb" onclick="nav('gacha')"><span class="ic" style="background:#F0E8FE">🎁</span><span>뽑기</span></button>
+</div>
+<div class="quick" style="margin-top:8px;grid-template-columns:1fr 1fr">
+  <button class="qb row2" onclick="nav('game')"><span class="ic" style="background:var(--grow-soft)">🎮</span><span>게임하고 받기</span></button>
+  <button class="qb row2" onclick="nav('video')"><span class="ic" style="background:#FDECEC">📺</span><span>영상 보고 받기</span></button>
+</div>
+
+<div class="grow-banner" onclick="nav('interest')">
+  <div><b>모은 포인트를 늘려봐요</b><p>넣어두면 매일 이자가 붙어요</p></div>
+  <div class="pig">🐷</div>
+</div>
+${S.refUsed ? '' : `<button class="refbar" onclick="refSheet()">🎁 추천인 코드가 있나요? 지금 넣고 500P를 받으세요 ›</button>`}
+<div style="height:14px"></div>`;
+};
+
+function toggleNotif() { S.notif = !S.notif; $('h-bell').textContent = S.notif ? '🔔' : '🔕'; toast(S.notif ? '알림을 켰어요' : '알림을 껐어요'); }
+function claimSteps() {
+  const p = claimable(); if (!p) return;
+  S.stepClaimed = true; addPoint(p, '걸음 포인트');
+  $('h-claim').textContent = '0P';
+  const b = $('h-claimb'); b.disabled = true; b.textContent = '받았어요';
+}
+/* opts.noDaily = 하루 적립 한도에 포함하지 않음 (친구 초대) */
+function addPoint(p, why, opts) {
+  opts = opts || {};
+  if (!opts.noDaily) {
+    const room = capLeft();
+    if (room <= 0) { toast('오늘 적립 한도를 다 채웠어요<br>내일 다시 받을 수 있어요'); return 0; }
+    if (p > room) { p = room; toast(`오늘 적립 한도까지 <b>+${fmt(p)}P</b>만 받았어요`); }
+  }
+  S.points += p;
+  if (!opts.noDaily) S.todayPoint += p;
+  S.history.unshift({ t: Date.now(), why, p, u: 'P', noDaily: opts.noDaily });
+  if (!(opts.silent)) toast(`${why} <b>+${fmt(p)}P</b>`);
+  syncHome();
+  return p;
+}
+function spendPoint(p, why) { S.points -= p; S.history.unshift({ t: Date.now(), why, p: -p, u: 'P' }); syncHome(); }
+function logWon(amt, why) { S.history.unshift({ t: Date.now(), why, p: amt, u: 'W' }); }
+function syncHome() {
+  const set = (id, v) => { const e = $(id); if (e) e.textContent = v; };
+  set('h-points', fmtP(S.points));
+  set('h-tp', fmt(S.todayPoint) + ' / ' + fmt(DAILY_CAP) + 'P');
+  const bar = $('h-tpbar'); if (bar) bar.style.width = Math.min(100, S.todayPoint / DAILY_CAP * 100) + '%';
+  set('h-streak', S.attTotal);
+  set('shop-avail', fmtP(S.points) + 'P');
+}
+
+/* ===== 포인트 기록 ===== */
+const hrow = (h) => {
+  const isW = h.u === 'W';
+  const sign = h.p > 0 ? '+' : '-';
+  const val = isW ? won(Math.abs(h.p)) : fmtP(Math.abs(h.p)) + 'P';
+  return `<div class="hrow">
+    <span class="ic" style="background:${h.p > 0 ? 'var(--grow-soft)' : '#FDECEC'};color:${h.p > 0 ? 'var(--grow-deep)' : 'var(--red)'}">${h.p > 0 ? '＋' : '－'}</span>
+    <div class="tx"><b>${h.why}</b><p>${new Date(h.t).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}${h.noDaily ? ' · 한도 미적용' : ''}${isW ? ' · 원화' : ''}</p></div>
+    <b style="font-size:15px;color:${h.p > 0 ? 'var(--grow-deep)' : 'var(--ink)'}">${sign}${val}</b>
+  </div>`;
+};
+V.history = () => `
+${head('오늘 모은 포인트')}
+<div class="card" style="margin:0 16px;text-align:center">
+  <p class="tiny muted b">오늘 모은 포인트</p>
+  <b style="font-size:32px;letter-spacing:-1.2px;display:block;margin-top:4px">${fmt(S.todayPoint)}P</b>
+  <div class="pbar g mt16"><i style="width:${Math.min(100, S.todayPoint / DAILY_CAP * 100)}%"></i></div>
+  <p class="tiny muted b mt8">하루 적립 한도 ${fmt(DAILY_CAP)}P · ${fmt(capLeft())}P 남았어요</p>
+  <div class="notice2 mt16" style="text-align:left">걸음, 출석, 퀴즈, 게임, 영상 보기에 한도가 적용돼요. 보너스와 룰렛, 설문, 친구 초대는 한도에 들어가지 않아요.</div>
+</div>
+<div class="sect-t">활동 내역 <span>최근 순서예요</span></div>
+${S.history.length ? S.history.map(hrow).join('') : '<div class="hint">아직 오늘 모은 포인트가 없어요. 혜택 탭에서 시작해 보세요</div>'}
+<div style="height:12px"></div>`;
+
+/* ===== 혜택 ===== */
+const BENEFITS = [
+  ['attend', '📅', 'var(--blue-soft)', '출석체크', () => '7일 연속 출석해 보세요'],
+  ['bonus', '💰', 'var(--gold-soft)', '오늘의 보너스', () => '6시간마다 한 번, 최대 300P를 받아요'],
+  ['video', '📺', '#FDECEC', '영상 보고 받기', () => adLeft() ? `오늘 ${adLeft()}번 남았어요` : '내일 다시 열려요'],
+  ['game', '🎮', 'var(--grow-soft)', '게임하고 받기', () => '20초 동안 포인트를 모아봐요'],
+  ['gacha', '🎁', '#F0E8FE', '나드리 뽑기', () => `${GACHA_COST}P로 한 번 뽑아요`],
+  ['roulette', '🎡', '#FFE8D5', '행운 룰렛', () => '하루 1번, 최대 50P를 받아요'],
+  ['quiz', '🧠', '#FDECEC', 'OX 퀴즈', () => '하루 5문제, 정답을 맞추면 5P를 받아요'],
+  ['survey', '📝', 'var(--blue-soft)', '설문 참여', () => '5분 정도 걸려요. 끝내면 300P를 받아요'],
+  ['invite', '👯', 'var(--grow-soft)', '친구 초대', () => '나도 500P, 친구도 500P를 받아요']
+];
+V.benefit = () => `
+${head('혜택', false)}
+<div class="pad sm muted b" style="margin:-4px 0 14px;padding-left:17px">누르면 포인트를 모을 수 있어요</div>
+${BENEFITS.map(([id, ic, bg, t, d]) => `
+<button class="lrow" onclick="nav('${id}')">
+  <span class="ic" style="background:${bg}">${ic}</span>
+  <span class="tx"><b>${t}</b><p>${d()}</p></span>
+  <span class="go">${benefitDone(id) ? '<i class="okchip">완료</i>' : '›'}</span>
+</button>`).join('')}
+<div class="hint">완료한 항목은 내일 다시 열려요</div>`;
+function benefitDone(id) {
+  return ({ attend: S.attToday, bonus: S.bonusGot.every(b => b), video: adLeft() === 0,
+    roulette: S.rouletteUsed && !S.rouletteBoost, quiz: S.quizIdx >= 5, survey: S.surveyDone,
+    game: false, invite: false, gacha: false })[id];
+}
+
+/* ===== 이자받기 인트로 ===== */
+V.interest = () => {
+  const staked = S.pStake > 0 || S.cStake > 0;
+  return `
+<div class="shead"><button class="backb" onclick="nav('home')">‹</button><h2></h2><div class="spacer"></div></div>
+<div class="intro-hero"><h1>포인트가 자동으로<br>늘어나요</h1><div class="intro-pig">🐷</div></div>
+<div class="intro-list">
+  <div>💧 꾸준히 이자가 적립돼요</div>
+  <div>🚪 언제든 뺄 수 있어요</div>
+  <div>👀 실시간으로 확인해요</div>
+</div>
+<div class="pad mt24"><button class="btn grow" onclick="nav('grow')">${staked ? '이자 현황 보기' : '이자 받으러 가기'}</button></div>
+<div class="pad center mt12"><span class="askline wq">이자는 어디에서 생기나요 ${qm('interest')}</span></div>`;
+};
+
+/* ===== 이자받기 본화면 ===== */
+V.grow = () => `
+${head('이자받기')}
+<div class="sect-t" style="margin-top:2px">내 포인트 ${qm('stake')}</div>
+<div class="grow-card p">
+  ${S.pStake > 0 ? `
+    <div class="k">포인트가 이자를 받아오고 있어요</div>
+    <div class="big" id="ip-total">${growNum(pTotal(), 7)}<small>P</small></div>
+    <div class="rowline"><span>오늘 받은 이자</span><b id="ip-today">+${fmtd(S.pToday, 4)}P</b></div>
+    <div class="btns">
+      <button onclick="stakeSheet('p')">추가 저금하기</button>
+      <button class="solid" onclick="stopSheet('p')">이자 그만 받기</button>
+    </div>` : `
+    <div class="k">내 포인트</div>
+    <div class="big empty-stake" id="ip-total">0<small>P</small></div>
+    <div class="tiny" style="opacity:.85;font-weight:700;margin-top:6px">지금 갖고 있는 ${fmtP(S.points)}P를 넣어보세요</div>
+    <div class="btns" style="grid-template-columns:1fr"><button class="solid" onclick="stakeSheet('p')">이자 받기</button></div>`}
+</div>
+
+${(S.pStake > 0 || S.cStake > 0) ? `<div class="midcopy">
+  <b>포인트가 자동으로 이자를 받고 있어요</b>
+  <p>입금을 해도 똑같이 늘어나요</p>
+</div>` : ''}
+
+<div class="sect-row">
+  <div class="st-l"><b>내 자산</b><span>입금한 돈도 이자를 받을 수 있어요</span></div>
+  <div class="st-r">
+    <button class="minib" onclick="nav('deposit')">입금</button>
+    <button class="minib" onclick="withdrawSheet()">출금</button>
+  </div>
+</div>
+<div class="grow-card c">
+  ${S.cStake > 0 ? `
+    <div class="k">입금한 돈이 이자를 받아오고 있어요</div>
+    <div class="big" id="ic-total">${growNum(cTotal(), 4)}<small>원</small></div>
+    <div class="rowline"><span>오늘 받은 이자</span><b id="ic-today">+${fmtd(S.cToday, 4)}원</b></div>` : `
+    <div class="k">내 자산</div>
+    <div class="big empty-stake" id="ic-total">0<small>원</small></div>`}
+  <div class="rowline"><span>이자 안 받고 있는 돈</span><b id="ic-idle">${won(S.cash)}</b></div>
+  <div class="btns" ${S.cStake > 0 ? '' : 'style="grid-template-columns:1fr"'}>
+    <button class="solid" onclick="stakeSheet('c')">${S.cStake > 0 ? '추가 저금하기' : '이자 받기'}</button>
+    ${S.cStake > 0 ? `<button onclick="stopSheet('c')">이자 그만 받기</button>` : ''}
+  </div>
+</div>
+<div class="pad mt12"><div class="notice2">출금하기는 내 계좌로 보내는 거라 영업일 기준 1~3일이 걸려요.</div></div>
+${S.withdrawals.length ? `<div class="sect-t">출금 신청</div>
+${S.withdrawals.map(w => `<div class="inv"><div><b>${won(w.amt)}</b><p>${new Date(w.t).toLocaleDateString('ko-KR')} 신청</p></div>
+  <span class="st ${w.st === 'done' ? 'paid' : 'join'}">${w.st === 'done' ? '입금 완료' : '처리 중'}</span></div>`).join('')}` : ''}
+<div style="height:16px"></div>`;
+
+function growNum(v, d) { const s = fmtd(v, d), i = s.indexOf('.'); return `${s.slice(0, i)}<span class="dec">${s.slice(i)}</span>`; }
+
+/* ===== 포인트샵 ===== */
+V.shop = () => `
+${head('포인트샵', false)}
+<div class="shop-head">
+  <div class="k">쓸 수 있는 포인트</div>
+  <div class="v" id="shop-avail">${fmtP(S.points)}P</div>
+  ${pTotal() > 0 ? `<div class="stakebar">
+    <span class="stake" id="shop-stake">🌱 이자 받는 중 ${fmtd(pTotal(), 4)}P</span>
+    <button class="uselink" onclick="stopSheet('p',1)">사용하기</button>
+  </div>` : `<div class="stake">모은 포인트를 이자받기에 넣으면 매 순간 불어나요</div>`}
+</div>
+
+<div class="sect-t">실시간 후기</div>
+<div class="reviews"><div class="rv-track" id="rv-track">
+  ${REVIEWS.concat(REVIEWS.slice(0, 2)).map(([e, c, t, s]) => `
+  <div class="rv"><span class="av" style="background:${c}">${e}</span><div><p>${t}</p><span>${s}</span></div></div>`).join('')}
+</div></div>
+
+<div class="sect-t">베스트 상품</div>
+<div class="bestrow" id="bestrow">${bestItems().map((it, i) => bestCard(it, i + 1)).join('')}</div>
+<div class="sbar" id="sbar"><i id="brthumb"></i></div>
+
+<div class="sect-t">카테고리</div>
+<div class="cats" id="cats">${CATS.map(([id, n]) => `<button class="cat ${S.cat === id ? 'on' : ''}" onclick="setCat('${id}')">${n}</button>`).join('')}</div>
+<div id="shop-body">${shopBody()}</div>
+<div style="height:12px"></div>`;
+POST.shop = () => { dragScroll('bestrow'); dragScroll('cats'); brBar(); };
+let barDown = false;
+function brBar() {
+  const row = $('bestrow'), th = $('brthumb'), bar = $('sbar'); if (!row || !th || !bar) return;
+  const upd = () => {
+    const max = row.scrollWidth - row.clientWidth;
+    const w = Math.max(18, row.clientWidth / row.scrollWidth * 100);
+    th.style.width = w + '%';
+    th.style.left = (max > 0 ? row.scrollLeft / max * (100 - w) : 0) + '%';
+  };
+  const seek = (x) => {
+    const r = bar.getBoundingClientRect(), tw = th.offsetWidth;
+    let p = (x - r.left - tw / 2) / Math.max(1, r.width - tw);
+    p = Math.max(0, Math.min(1, p));
+    row.scrollLeft = p * (row.scrollWidth - row.clientWidth);
+  };
+  row.addEventListener('scroll', upd);
+  bar.onmousedown = e => { barDown = true; bar.classList.add('drag'); seek(e.clientX); e.preventDefault(); };
+  bar.ontouchstart = e => seek(e.touches[0].clientX);
+  bar.ontouchmove = e => { seek(e.touches[0].clientX); e.preventDefault(); };
+  window.__seek = seek;
+  upd();
+}
+document.addEventListener('mousemove', e => { if (barDown && window.__seek) window.__seek(e.clientX); });
+document.addEventListener('mouseup', () => { barDown = false; const b = $('sbar'); if (b) b.classList.remove('drag'); });
+
+function dragScroll(id) {
+  const el = $(id); if (!el) return;
+  let down = false, x0 = 0, l0 = 0;
+  el.addEventListener('mousedown', e => { down = true; x0 = e.pageX; l0 = el.scrollLeft; el.classList.add('drag'); });
+  const stop = () => { down = false; el.classList.remove('drag'); };
+  el.addEventListener('mouseleave', stop); el.addEventListener('mouseup', stop);
+  el.addEventListener('mousemove', e => { if (!down) return; e.preventDefault(); el.scrollLeft = l0 - (e.pageX - x0); });
+}
+function bestItems() {
+  const A = SHOP.asset.items, top = [A[0], A[3]];
+  const rest = Object.values(SHOP).flatMap(c => c.items).filter(i => !top.includes(i)).sort((a, b) => b.cnt - a.cnt);
+  return [top[0], top[1], rest[0]].concat(rest.slice(1, 8));
+}
+const MEDAL = ['', '🥇', '🥈', '🥉'];
+function bestCard(it, rank) {
+  const top = rank <= 3;
+  return `<button class="bcard ${top ? 'top t' + rank : ''}" onclick='buy(${J(it)})'>
+    <span class="rk">${top ? MEDAL[rank] + ' ' + rank + '위' : rank}</span>
+    <span class="im">${it.e}</span>
+    <span class="br">${it.br}</span>
+    <span class="nm">${it.n}</span>
+    <span class="pr"><i class="pc">P</i>${fmt(it.p)}</span>
+  </button>`;
+}
+const J = (o) => JSON.stringify(o).replace(/'/g, '&#39;');
+function setCat(c) { S.cat = c; S.brand = null; nav('shop', null, true); }
+function setBrand(b) { S.brand = S.brand === b ? null : b; $('shop-body').innerHTML = shopBody(); }
+const SORTS = [['pop', '인기순'], ['price', '가격순'], ['value', '가성비순']];
+function setSort(s) { S.sort = s; $('shop-body').innerHTML = shopBody(); }
+function allBody() {
+  let items = ALL_ITEMS().slice();
+  if (S.sort === 'price') items.sort((x, y) => x.p - y.p);
+  else if (S.sort === 'value') items.sort((x, y) => valueOf(y) - valueOf(x));
+  else items.sort((x, y) => y.cnt - x.cnt);
+  const note = S.sort === 'price' ? '적은 포인트로 바꿀 수 있는 순서예요.'
+    : S.sort === 'value' ? '같은 포인트로 더 많이 받는 순서예요. 1,000P로 얼마어치를 받는지 기준이에요.'
+      : '가장 많이 바꿔간 순서예요.';
+  return `
+<div class="sorts">${SORTS.map(([k, n]) => `<button class="sortb ${S.sort === k ? 'on' : ''}" onclick="setSort('${k}')">${n}</button>`).join('')}</div>
+<div class="cat-note"><span class="cn-t">${note}</span></div>
+${items.map((it, i) => prodHTML(it, S.sort === 'value' ? i + 1 : 0)).join('')}`;
+}
+function shopBody() {
+  if (S.cat === 'all') return allBody();
+  const c = SHOP[S.cat];
+  const items = S.brand ? c.items.filter(i => i.b === S.brand) : c.items;
+  return `
+<div class="brands">${c.brands.map(b => `
+  <button class="brand ${S.brand === b.id ? 'on' : ''}" onclick="setBrand('${b.id}')">
+    <span class="cc" style="background:${b.c};color:#fff">${b.t}</span><span>${b.n}</span>
+  </button>`).join('')}</div>
+<div class="cat-note"><span class="cn-t">${c.note}</span>${c.tip ? qm('cat_' + S.cat) : ''}</div>
+${items.map(it => prodHTML(it)).join('')}`;
+}
+
+function liveQty(it) {
+  if (it.live === 'btc') return `${(it.won / S.btc).toFixed(8)} BTC`;
+  if (it.live === 'paxg') return `${(it.won / S.paxg).toFixed(6)} PAXG`;
+  return '';
+}
+function prodHTML(it, rank) {
+  const can = S.points >= it.p;
+  const v = valueOf(it);
+  const ratio = v ? `1,000P당 ${fmt(v)}원어치` : '';
+  const kind = it.toCash ? '내 지갑으로' : (it.live ? '실시간 시세' : (it.won ? '매장 사용' : ''));
+  return `
+<button class="prod ${can ? '' : 'cant'}" onclick='buy(${J(it)})'>
+  <span class="im">${it.e}${it.tag ? `<span class="tagv">${it.tag}</span>` : ''}${rank ? `<span class="rkv">${rank}</span>` : ''}</span>
+  <span class="tx">
+    <span class="br">${it.br}${kind ? ` · ${kind}` : ''}</span>
+    <span class="nm">${it.n}</span>
+    ${it.live ? `<span class="livq" data-live="${it.live}" data-won="${it.won}">지금 ${liveQty(it)}</span>` : ''}
+    <span class="pr"><i class="pc">P</i>${fmt(it.p)}</span>
+    <span class="cnt">${fmt(it.cnt)}명 받음${ratio ? ' · ' + ratio : ''}</span>
+  </span>
+</button>`;
+}
+
+/* ===== 쿠폰함 ===== */
+function couponCard(cp, i) {
+  return `<button class="cp" onclick="couponOpen(${i})">
+    <span class="cpim">${cp.e}${cp.used ? '<span class="dd">사용 완료</span>' : ''}</span>
+    <span class="cpbr">${cp.br}</span>
+    <span class="cpnm">${cp.n}</span>
+    <span class="cpdt">${new Date(cp.t).toLocaleDateString('ko-KR')} 교환</span>
+  </button>`;
+}
+function couponOpen(i) {
+  const cp = S.coupons[i];
+  openSheet(`<h3>${cp.n}</h3><p class="sub">${cp.br} · ${new Date(cp.t).toLocaleDateString('ko-KR')} 교환</p>
+  <div class="cpbig mt16">
+    <div class="cpface">${cp.e}</div>
+    <div class="barcode">${Array.from({length:34},()=>`<i style="width:${1+Math.floor(Math.random()*3)}px"></i>`).join('')}</div>
+    <div class="cpcode">${cp.code}</div>
+  </div>
+  ${cp.used ? '<div class="notice2 mt16">이미 사용한 쿠폰이에요.</div>'
+    : `<button class="btn pri mt16" onclick="useCoupon(${i})">사용 완료 처리하기</button>`}
+  <button class="btn ghost mt8" onclick="closeSheet()">닫기</button>`);
+}
+function useCoupon(i) { S.coupons[i].used = true; closeSheet(); toast('사용 완료로 바꿨어요'); nav(cur, curOpt, true); }
+V.coupons = () => {
+  const live = S.coupons.filter(c => !c.used), used = S.coupons.filter(c => c.used);
+  return `
+${head('쿠폰함')}
+<div class="pad sm muted b" style="margin:-4px 0 14px;padding-left:17px">쓸 수 있는 쿠폰 ${live.length}장</div>
+${live.length ? `<div class="cpgrid">${live.map(cp => couponCard(cp, S.coupons.indexOf(cp))).join('')}</div>`
+      : '<div class="hint">아직 쿠폰이 없어요. 포인트샵에서 바꿔보세요</div>'}
+${used.length ? `<div class="sect-t">사용 완료 <span>${used.length}장</span></div>
+<div class="cpgrid dim">${used.map(cp => couponCard(cp, S.coupons.indexOf(cp))).join('')}</div>` : ''}
+<div style="height:12px"></div>`;
+};
+
+/* ===== 내 지갑 ===== */
+V.wallet = () => {
+  const parts = [
+    { n: '쓸 수 있는 포인트', v: S.points * 0.55, c: 'var(--gold)', d: fmtP(S.points) + 'P' },
+    { n: '이자 받는 포인트', v: pTotal() * 0.55, c: 'var(--grow)', d: fmtd(pTotal(), 2) + 'P' },
+    { n: '원화 자산', v: S.cash + cTotal(), c: 'var(--blue)', d: won(S.cash + cTotal()), act: 'cash' },
+    { n: '비트코인', v: S.hold.btc * S.btc, c: '#F7931A', d: S.hold.btc.toFixed(8) + ' BTC', act: 'btc' },
+    { n: '금 PAXG', v: S.hold.paxg * S.paxg, c: '#C9A227', d: S.hold.paxg.toFixed(6) + ' PAXG', act: 'paxg' }
+  ];
+  const tot = netWorth() || 1;
+  const live = S.coupons.filter(c => !c.used);
+  const show = live.slice(0, 3), more = live.length - show.length;
+  return `
+${head('내 지갑', false)}
+<div class="card" style="margin:0 16px;text-align:center">
+  <p class="tiny muted b">전체 자산</p>
+  <b style="font-size:34px;letter-spacing:-1.5px;display:block;margin-top:2px" id="w-total">${won(netWorth())}</b>
+  <div class="mixbar mt16">${parts.map(p => `<i style="width:${p.v / tot * 100}%;background:${p.c}"></i>`).join('')}</div>
+</div>
+
+<div class="sect-row">
+  <div class="st-l"><b>쿠폰함</b><span>${live.length ? `쓸 수 있는 쿠폰 ${live.length}장` : '아직 쿠폰이 없어요'}</span></div>
+  ${live.length ? `<div class="st-r"><button class="minib" onclick="nav('coupons')">전체 보기</button></div>` : ''}
+</div>
+${live.length ? `<div class="cpgrid">
+  ${show.map(cp => couponCard(cp, S.coupons.indexOf(cp))).join('')}
+  ${more > 0 ? `<button class="cp more" onclick="nav('coupons')"><span class="pl">+${more}</span><span class="cpnm">더 보기</span></button>` : ''}
+</div>` : `<button class="cpempty" onclick="nav('shop')">포인트샵에서 쿠폰으로 바꿔보세요 ›</button>`}
+
+<div class="sect-t">보유 자산</div>
+${parts.map(p => `
+<div class="wrow">
+  <div class="wtop">
+    <span class="ic" style="background:${p.c}22;color:${p.c}">●</span>
+    <div class="tx"><b>${p.n}</b><p>${(p.v / tot * 100).toFixed(1)}%</p></div>
+    <div style="text-align:right"><b style="font-size:15px">${p.d}</b><p class="tiny muted b">${won(p.v)}</p></div>
+  </div>
+  ${p.act === 'cash' ? `<div class="wact"><button class="minib" onclick="nav('deposit')">입금</button><button class="minib" onclick="withdrawSheet()">출금</button></div>`
+      : p.act ? `<div class="wact"><button class="minib wide" onclick="sellSheet('${p.act}')">출금하기</button></div>` : ''}
+</div>`).join('')}
+
+<div class="sect-row" style="margin-top:22px">
+  <div class="st-l"><b class="wq">내 지갑 주소 ${qm('addr')}</b></div>
+</div>
+<div class="card" style="margin:0 16px">
+  <div class="between"><span class="sm b muted">이름</span><b class="mono">${S.upid}</b></div>
+  <div class="between mt12"><span class="sm b muted">주소</span><b class="mono">${S.addr.slice(0, 6)}...${S.addr.slice(-4)}</b></div>
+  <div class="between mt12"><span class="sm b muted">네트워크</span><span class="chip">GIWA</span></div>
+  <div class="btn2 mt16">
+    <button class="btn line sm" onclick="toast('주소를 복사했어요')">주소 복사하기</button>
+    <button class="btn ghost sm" onclick="advSheet()">고급 설정</button>
+  </div>
+</div>
+<div class="sect-t">최근 내역</div>
+${S.history.slice(0, 10).map(hrow).join('') || '<div class="hint">아직 내역이 없어요</div>'}
+<div style="height:12px"></div>`;
+};
+
+/* ===== 출석체크 (연속 일수 = 오늘 포함 며칠째) ===== */
+const attP = (d) => d <= 3 ? 5 : (d <= 6 ? 10 : 20);
+const streakN = () => S.attToday ? S.attTotal : S.attTotal + 1;   // 오늘 포함 연속 일수
+const cycleDay = () => ((streakN() - 1) % 7) + 1;                  // 이번 7일 사이클의 오늘 위치
+V.attend = () => {
+  const cd = cycleDay(), doneUpto = S.attToday ? cd : cd - 1;
+  return `
+${head('출석체크')}
+<div class="pad center" style="margin-bottom:14px">
+  <b style="font-size:20px;letter-spacing:-.5px">7일 연속 출석해 보세요</b>
+  <span class="chip mt12">🔥 오늘로 ${streakN()}일째 연속</span>
+</div>
+<div class="att">
+  ${[1, 2, 3, 4, 5, 6, 7].map(d => `
+  <div class="d ${d <= doneUpto ? 'got' : ''} ${d === cd && !S.attToday ? 'today' : ''} ${d === 7 ? 'd7' : ''}">
+    <div class="n">${d}일차</div><div class="p">${attP(d)}P</div>
+    <div class="co">${d <= doneUpto ? '✅' : (d === 7 ? '🎁' : '🪙')}</div></div>`).join('')}
+</div>
+<div class="pad mt24">
+  <button class="btn pri" onclick="doAttend()" ${S.attToday ? 'disabled' : ''}>
+    ${S.attToday ? '오늘은 이미 받았어요' : `${cd}일차 ${attP(cd)}P 받기`}</button>
+</div>`;
+};
+function doAttend() {
+  if (S.attToday) return;
+  const d = cycleDay(), p = attP(d);
+  S.attTotal += 1; S.attToday = true;
+  addPoint(p, `${d}일차 출석`);
+  if (d >= 7) toast('7일을 다 채웠어요. 내일 1일차부터 다시 시작해요');
+  nav('attend', null, true);
+}
+
+/* ===== 오늘의 보너스 : 6시간마다, 금액은 열어봐야 알아요 ===== */
+const SLOTS = [
+  { n: '아침 보너스', s: 6, e: 12, ic: '🌤️' },
+  { n: '낮 보너스', s: 12, e: 18, ic: '☀️' },
+  { n: '저녁 보너스', s: 18, e: 24, ic: '🌙' }
+];
+function rollBonus() {
+  const tot = BONUS_TBL.reduce((a, x) => a + x[1], 0); let r = Math.random() * tot;
+  for (const [v, w] of BONUS_TBL) { r -= w; if (r <= 0) return v; }
+  return 1;
+}
+V.bonus = () => {
+  const h = new Date().getHours() + new Date().getMinutes() / 60;
+  const night = h < 6;
+  return `
+${head('오늘의 보너스')}
+<div class="pad center" style="margin-bottom:14px">
+  <b style="font-size:20px;letter-spacing:-.5px">6시간마다 한 번, 최대 300P</b>
+</div>
+${SLOTS.map((s, i) => {
+    const got = S.bonusGot[i], before = h < s.s, after = h >= s.e, off = got || before || after;
+    return `<div class="bonus-slot ${off ? 'off' : ''}">
+    <span style="font-size:26px">${got ? '📭' : '📬'}</span>
+    <span class="tx"><b>${s.n}</b><p>${got ? `${fmt(S.bonusGot[i])}P를 받았어요` : `${s.s}시 ~ ${s.e === 24 ? '자정' : s.e + '시'}`}</p></span>
+    <button onclick="getBonus(${i})" ${off ? 'disabled' : ''}>${got ? '받았어요' : before ? `${s.s}시부터` : after ? '시간이 지났어요' : '열어보기'}</button></div>`;
+  }).join('')}
+
+<div class="nightcard ${night ? 'now' : ''}" onclick="nav('interest')">
+  <div class="nb"><span style="font-size:26px">🌜</span>
+    <div><b>자정 ~ 6시에는 보너스가 없어요</b>
+      <p>대신 주무시는 동안에도 포인트가 자동으로 늘어나요</p></div></div>
+  <div class="nline">이자받기에 넣어보세요 ›</div>
+</div>
+
+<div class="pad mt16">
+  <button class="btn ${S.push ? 'ghost' : 'line'}" onclick="togglePush()">${S.push ? '✅ 푸시알림을 받고 있어요' : '🔔 푸시알람 설정하기'}</button>
+  <div class="hint">알림을 켜두면 받을 수 있는 시간에 알려드려요</div>
+</div>`;
+};
+function getBonus(i) {
+  if (S.bonusGot[i]) return;
+  const v = rollBonus();
+  S.bonusGot[i] = v;
+  addPoint(v, SLOTS[i].n, { noDaily: 1, silent: 1 });
+  const big = v >= 50;
+  openSheet(`<h3>${SLOTS[i].n}</h3><p class="sub">${big ? '오늘 운이 아주 좋으시네요' : '오늘의 보너스가 도착했어요'}</p>
+  <div class="bonusbox mt16 ${big ? 'big' : ''}">
+    <span>${big ? '🎉' : '🪙'}</span><b>+${fmt(v)}P</b>
+    <p>${big ? '이런 금액은 아주 가끔만 나와요' : '보너스는 최대 300P까지 나올 수 있어요'}</p>
+  </div>
+  <button class="btn pri mt16" onclick="closeSheet();nav('bonus',null,true)">확인</button>`);
+}
+function togglePush() { S.push = !S.push; toast(S.push ? '보너스 시간에 알려드릴게요' : '푸시알림을 껐어요'); nav('bonus', null, true); }
+
+/* ===== 영상 보고 받기 : 3회 완주 스탬프, 금액은 보고 나서 공개 ===== */
+V.video = () => {
+  const left = adLeft(), n = S.adViews;
+  const ttl = left === 0 ? '오늘 볼 수 있는 영상을 다 봤어요' : '광고를 시청하고 포인트를 받아요';
+  const sub = left === 0 ? '24시간 뒤에 다시 열려요'
+    : n < AD.milestone ? '3회까지 보면 추가 보너스를 받아요' : `오늘 ${left}번 더 볼 수 있어요`;
+  return `
+${head('영상 보고 받기')}
+<div class="pad center" style="margin-bottom:14px">
+  <b style="font-size:19px;letter-spacing:-.5px">${ttl}</b>
+  <p class="sm muted b mt8">${sub}</p>
+</div>
+<div class="stamps">
+  ${[0, 1, 2].map(i => `<div class="sp ${i < n ? 'on' : ''} ${i === 2 ? 'gift' : ''}">
+    <span>${i < n ? '✓' : (i === 2 ? '🎁' : i + 1)}</span></div>`).join('')}
+  <div class="spline"><i style="width:${Math.min(1, n / AD.milestone) * 100}%"></i></div>
+</div>
+<div class="player mt16"><div class="ic">📺</div>
+  <div class="ttl" id="pl-t">${left ? '재생하면 30초 동안 진행돼요' : '내일 다시 만나요'}</div>
+  <div class="plbar"><i id="pl-bar"></i></div></div>
+<div class="pad mt16"><button class="btn pri" id="pl-btn" onclick="watchAd()" ${left ? '' : 'disabled'}>${left ? '영상 재생하기' : '오늘은 다 봤어요'}</button></div>`;
+};
+function watchAd() {
+  const r = adReward(); if (!r) return;
+  playMedia(() => {
+    S.adViews++;
+    const got = addPoint(r, `영상 시청 ${S.adViews}회차`, { silent: 1 });
+    const done = S.adViews === AD.milestone;
+    openSheet(`<h3>${done ? '3회 완주 보너스' : '영상을 다 봤어요'}</h3>
+      <p class="sub">${done ? '세 편을 다 봐서 추가 보너스가 얹혔어요' : '광고를 봐서 받은 포인트예요'}</p>
+      <div class="bonusbox mt16 ${done ? 'big' : ''}"><span>${done ? '🎁' : '🪙'}</span><b>+${fmt(got)}P</b>
+        <p>${S.adViews < AD.milestone ? `${AD.milestone - S.adViews}번 더 보면 추가 보너스를 받아요` : ''}</p></div>
+      <button class="btn pri mt16" onclick="closeSheet();nav('video',null,true)">확인</button>`);
+  });
+}
+function playMedia(cb) {
+  const btn = $('pl-btn'); if (btn) { btn.disabled = true; btn.textContent = '재생 중이에요'; }
+  const t0 = $('pl-t'); if (t0) t0.textContent = '보는 중이에요';
+  let t = 0; const total = 60;
+  const iv = setInterval(() => {
+    t++; const b = $('pl-bar'); if (b) b.style.width = (t / total * 100) + '%';
+    if (t >= total) { clearInterval(iv); const e = $('pl-t'); if (e) e.textContent = '다 봤어요'; cb(); }
+  }, 100);
+  window.cleanup = () => clearInterval(iv);
+}
+
+/* ===== 게임: 떨어지는 것 잡기 ===== */
+const DROPS = [
+  { k: 'p', e: 'P', v: 1, w: 55, c: 'c1', n: '포인트' },
+  { k: 'doge', e: 'Ð', v: 2, w: 10, c: 'c5', n: '도지코인' },
+  { k: 'usdt', e: '₮', v: 2, w: 10, c: 'c2', n: '테더' },
+  { k: 'gold', e: '🥇', v: 3, w: 9, c: 'c3', n: '금' },
+  { k: 'btc', e: '₿', v: 5, w: 7, c: 'c4', n: '비트코인' },
+  { k: 'miss', e: '💨', v: 0, w: 9, c: 'c0', n: '꽝' }
+];
+V.game = () => {
+  const free = S.gamePlays === 0;
+  return `
+${head('게임하고 받기')}
+<div class="pad center" style="margin-bottom:12px">
+  <b style="font-size:19px;letter-spacing:-.5px">떨어지는 포인트를 잡아보아요</b>
+  <p class="sm muted b mt8">${free ? '오늘 무료 1회가 남아 있어요' : (S.gameAdReady ? '추가 판이에요' : '오늘 무료 1회를 썼어요')}${S.gameBest ? ` · 최고 ${S.gameBest}P` : ''}</p>
+</div>
+<div class="dropshow"><div class="dsrow">${
+  DROPS.filter(d => d.k !== 'miss').concat(DROPS.filter(d => d.k !== 'miss')).concat(DROPS.filter(d => d.k !== 'miss'))
+    .map(d => `<div class="ds"><span class="coin ${d.c} mini">${d.e}</span><b>${d.n}</b></div>`).join('')}</div></div>
+<div class="gtop"><span>남은 시간 <b id="g-time" style="color:var(--blue)">20</b>초</span><span>잡은 포인트 <b id="g-score" style="color:var(--grow-deep)">0</b>P</span></div>
+<div class="gwrap" id="gwrap">
+  <div id="g-start" style="position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:20px">
+    ${free || S.gameAdReady ? `<button class="btn pri" style="width:auto;padding:15px 30px" onclick="startGame()">게임 시작하기</button>`
+      : `<div><div style="font-size:40px;margin-bottom:10px">🎬</div>
+        <b style="font-size:16px">영상을 보면 한 판 더 할 수 있어요</b>
+        <p class="tiny muted b" style="margin-top:6px">추가 판은 1P 코인만 떨어져요</p>
+        <button class="btn line" style="width:auto;padding:13px 24px;margin-top:14px" onclick="gameAd()">영상 보고 이어하기</button></div>`}
+  </div>
+</div>
+`;
+};
+function gameAd() {
+  if (!adLeft()) return toast('오늘 볼 수 있는 영상을 다 봤어요');
+  openSheet(`<h3>영상을 보면 한 판 더 할 수 있어요</h3><p class="sub">추가 판에서는 1P 코인만 떨어져요</p>
+  <div class="player" style="margin:16px 0 0;height:150px"><div class="ic">📺</div>
+    <div class="ttl" id="pl-t">재생을 기다리는 중이에요</div><div class="plbar"><i id="pl-bar"></i></div></div>
+  <button class="btn pri mt16" id="pl-btn" onclick="runGameAd()">영상 재생하기</button>`);
+}
+function runGameAd() {
+  playMedia(() => { S.adViews++; S.gameAdReady = true; closeSheet(); toast('이어서 한 판 더 할 수 있어요'); nav('game', null, true); });
+}
+function pickDrop(basic) {
+  if (basic) return DROPS[0];
+  const t = DROPS.reduce((a, d) => a + d.w, 0); let r = Math.random() * t;
+  for (const d of DROPS) { r -= d.w; if (r <= 0) return d; }
+  return DROPS[0];
+}
+function startGame() {
+  const basic = S.gamePlays > 0;
+  if (basic) S.gameAdReady = false;
+  S.gamePlays++;
+  const wrap = $('gwrap'); const st = $('g-start'); if (st) st.remove();
+  let score = 0, left = 20, coins = [];
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  const spawn = setInterval(() => {
+    const d = pickDrop(basic);
+    const el = document.createElement('div');
+    el.className = 'coin ' + d.c; el.innerHTML = `<b>${d.e}</b>`;
+    el.style.left = (10 + Math.random() * (W - 62)) + 'px'; el.style.top = '-44px';
+    const sp = 3.4 + Math.random() * 2.4;
+    el.onclick = (ev) => {
+      ev.stopPropagation(); if (el.dataset.got) return; el.dataset.got = 1;
+      score += d.v; $('g-score').textContent = score;
+      const pop = document.createElement('div'); pop.className = 'gpop';
+      pop.textContent = d.v ? '+' + d.v + 'P' : '꽝';
+      if (!d.v) pop.style.color = 'var(--muted)';
+      pop.style.left = el.style.left; pop.style.top = el.style.top;
+      wrap.appendChild(pop); setTimeout(() => pop.remove(), 700);
+      el.remove(); coins = coins.filter(c => c.el !== el);
+    };
+    wrap.appendChild(el); coins.push({ el, y: -44, sp });
+  }, 700);
+  const move = setInterval(() => {
+    coins.forEach(c => { c.y += c.sp; c.el.style.top = c.y + 'px'; if (c.y > H) { c.el.remove(); coins = coins.filter(x => x !== c); } });
+  }, 16);
+  const clock = setInterval(() => {
+    left--; $('g-time').textContent = left;
+    if (left <= 0) {
+      clearInterval(spawn); clearInterval(move); clearInterval(clock);
+      coins.forEach(c => c.el.remove());
+      const pay = Math.min(score, 40);
+      if (score > S.gameBest) S.gameBest = score;
+      if (pay > 0) addPoint(pay, '게임에서 잡은 포인트'); else toast('한 개도 못 잡았어요');
+      wrap.innerHTML = `<div style="position:absolute;inset:0;display:grid;place-items:center;text-align:center"><div>
+        <div style="font-size:38px">🎉</div><b style="font-size:22px">${pay}P를 모았어요</b>
+        <div style="margin-top:14px"><button class="btn ghost" style="width:auto;padding:12px 24px" onclick="nav('game',null,true)">돌아가기</button></div></div></div>`;
+    }
+  }, 1000);
+  window.cleanup = () => { clearInterval(spawn); clearInterval(move); clearInterval(clock); };
+}
+
+/* ===== 나드리 뽑기 ===== */
+V.gacha = () => `
+${head('나드리 뽑기')}
+<div class="pad center" style="margin-bottom:10px">
+  <b style="font-size:20px;letter-spacing:-.5px">${GACHA_COST}P로 한 번 뽑아요</b>
+  <p class="sm muted b mt8">꽝이어도 위로 포인트를 조금 돌려드려요</p>
+</div>
+<div class="gmachine">
+  <div class="gball" id="gball">🎁</div>
+  <div class="gtxt" id="gtxt">버튼을 누르면 뽑기가 시작돼요</div>
+</div>
+<div class="pad mt16">
+  <button class="btn pri" id="gbtn" onclick="rollGacha()" ${S.points >= GACHA_COST ? '' : 'disabled'}>
+    ${S.points >= GACHA_COST ? `${GACHA_COST}P 넣고 뽑기` : '포인트가 모자라요'}</button>
+</div>
+<div class="sect-t">이런 것들이 나와요</div>
+<div class="gpool">${GACHA.map(g => `<div class="gp t${g.tier}">
+  <span class="im">${g.e}</span><b>${g.n}</b></div>`).join('')}</div>
+${S.gachaLog.length ? `<div class="sect-t">내 뽑기 기록</div>
+${S.gachaLog.slice(0, 8).map(l => `<div class="hrow"><span class="ic" style="background:#F0E8FE">${l.e}</span>
+  <div class="tx"><b>${l.n}</b><p>${new Date(l.t).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</p></div></div>`).join('')}` : ''}
+<div style="height:12px"></div>`;
+function rollGacha() {
+  if (S.gachaRolling) return;
+  if (S.points < GACHA_COST) return toast('포인트가 모자라요');
+  S.gachaRolling = true;
+  spendPoint(GACHA_COST, '나드리 뽑기');
+  const btn = $('gbtn'), ball = $('gball'), txt = $('gtxt');
+  if (btn) { btn.disabled = true; btn.textContent = '뽑는 중이에요'; }
+  if (txt) txt.textContent = '뽑는 중이에요';
+  if (ball) ball.classList.add('spin');
+  const faces = GACHA.map(g => g.e).concat(['💨', '🪙']);
+  let i = 0;
+  const reel = setInterval(() => { if (ball && ball.isConnected) ball.textContent = faces[i++ % faces.length]; }, 90);
+  const to = setTimeout(() => { clearInterval(reel); finishGacha(); }, 1800);
+  /* 화면을 벗어나면 타이머를 정리하고 잠금도 풀어요 */
+  window.cleanup = () => { clearInterval(reel); clearTimeout(to); S.gachaRolling = false; };
+}
+function finishGacha() {
+  window.cleanup = null;
+  S.gachaRolling = false;
+  let r = Math.random(), hit = null;
+  for (const g of GACHA) { if (r < g.rate) { hit = g; break; } r -= g.rate; }
+  const ball = $('gball'), txt = $('gtxt'), btn = $('gbtn');
+  if (ball) ball.classList.remove('spin');
+  if (hit) {
+    if (ball) ball.textContent = hit.e;
+    if (txt) txt.textContent = hit.n + ' 당첨';
+    S.gachaLog.unshift({ n: hit.n, e: hit.e, t: Date.now() });
+    if (hit.n.includes('현금')) { S.cash += hit.w; logWon(hit.w, '뽑기 당첨 현금'); }
+    else S.coupons.unshift({ n: hit.n, e: hit.e, br: '나드리 뽑기', t: Date.now(), exp: Date.now() + 90 * 86400000,
+      code: 'N' + Math.random().toString(36).slice(2, 6).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase(), used: false });
+    openSheet(`<h3>축하해요</h3><p class="sub">${hit.n}에 당첨됐어요</p>
+      <div class="gwin mt16"><span>${hit.e}</span><b>${hit.n}</b><p>${won(hit.w)} 상당</p></div>
+      <button class="btn pri mt16" onclick="closeSheet();nav('gacha',null,true)">확인</button>`);
+  } else {
+    const back = 1 + Math.floor(Math.random() * 10);
+    if (ball) ball.textContent = '🪙';
+    if (txt) txt.textContent = `다음 기회에 만나요. 위로 포인트 ${back}P를 받았어요`;
+    S.gachaLog.unshift({ n: `다음 기회에 (위로 포인트 ${back}P)`, e: '🪙', t: Date.now() });
+    addPoint(back, '뽑기 위로 포인트', { noDaily: 1, silent: 1 });
+  }
+  if (btn) { btn.disabled = S.points < GACHA_COST; btn.textContent = S.points >= GACHA_COST ? `${GACHA_COST}P 넣고 뽑기` : '포인트가 모자라요'; }
+  const av = $('shop-avail'); if (av) av.textContent = fmtP(S.points) + 'P';
+}
+
+/* ===== 행운 룰렛 ===== */
+const WHEEL = [{ v: 1, c: '#8FB8FF' }, { v: 5, c: '#5B93FF' }, { v: 10, c: '#2F6BF3' },
+{ v: 0, c: '#AEB6C2' }, { v: 30, c: '#12B76A' }, { v: 50, c: '#FDB022' }];
+const W_BASE = [70, 6, 4, 14, 4, 2], W_BOOST = [30, 45, 10, 8, 5, 2];
+V.roulette = () => {
+  const grad = WHEEL.map((s, i) => `${s.c} ${i * 60}deg ${(i + 1) * 60}deg`).join(',');
+  const can = !S.rouletteUsed || S.rouletteBoost;
+  return `
+${head('행운 룰렛')}
+<div class="pad center" style="margin-bottom:4px"><b style="font-size:19px;letter-spacing:-.5px">하루 1번, 돌리면 포인트를 받아요</b></div>
+<div class="wheel-wrap">
+  <div class="needle">▼</div>
+  <div class="wheel" id="wheel" style="background:conic-gradient(${grad});transform:rotate(${S.rouletteAngle}deg)">
+    ${WHEEL.map((s, i) => `<div class="seg" style="transform:rotate(${i * 60 + 30}deg)">${s.v ? s.v + 'P' : '재도전'}</div>`).join('')}
+  </div>
+  <div class="wheel-c">나드리</div>
+</div>
+<div class="pad mt24"><button class="btn pri" id="spinb" onclick="spin()" ${can ? '' : 'disabled'}>${can ? '룰렛 돌리기' : '오늘은 다 돌렸어요'}</button></div>`;
+};
+function pick(w) { const t = w.reduce((a, b) => a + b, 0); let r = Math.random() * t; for (let i = 0; i < w.length; i++) { r -= w[i]; if (r <= 0) return i; } return 0; }
+function spin() {
+  if (S.spinning) return; S.spinning = true; $('spinb').disabled = true;
+  const idx = pick(S.rouletteBoost ? W_BOOST : W_BASE);
+  S.rouletteAngle = S.rouletteAngle - (S.rouletteAngle % 360) + 360 * 6 - (idx * 60 + 30);
+  $('wheel').style.transform = `rotate(${S.rouletteAngle}deg)`;
+  setTimeout(() => {
+    S.spinning = false;
+    const v = WHEEL[idx].v;
+    if (v === 0) { toast('재도전이 나왔어요. 한 번 더 돌려요'); $('spinb').disabled = false; return; }
+    S.rouletteUsed = true; S.rouletteBoost = false;
+    addPoint(v, '행운 룰렛', { noDaily: 1 });
+    setTimeout(() => { nav('roulette', null, true); moreSpinSheet(); }, 900);
+  }, 4300);
+}
+function moreSpinSheet() {
+  openSheet(`<h3>더 돌리고 싶으면 영상을 보면 돼요</h3>
+  <div class="player" style="margin:18px 0 0;height:150px"><div class="ic">📺</div>
+    <div class="ttl" id="pl-t">재생을 기다리는 중이에요</div><div class="plbar"><i id="pl-bar"></i></div></div>
+  <button class="btn pri mt16" id="pl-btn" onclick="runBoost()">영상 보고 한 번 더 돌리기</button>
+  <button class="btn ghost mt8" onclick="closeSheet()">괜찮아요</button>`);
+}
+function runBoost() {
+  if (!adLeft()) { closeSheet(); return toast('오늘 볼 수 있는 영상을 다 봤어요'); }
+  playMedia(() => { S.adViews++; S.rouletteBoost = true; closeSheet(); toast('한 번 더 돌릴 수 있어요'); nav('roulette', null, true); });
+}
+
+/* ===== OX 퀴즈 (정답당 5P) ===== */
+const QUIZ_P = 5;
+function newQuiz() { S.quizPool = [...QUIZ].sort(() => Math.random() - .5).slice(0, 5); S.quizIdx = 0; S.quizAnswered = null; S.quizLog = []; }
+V.quiz = () => {
+  if (!S.quizPool.length) newQuiz();
+  if (S.quizIdx >= 5) return `
+${head('OX 퀴즈')}
+<div class="pad center" style="margin-bottom:6px">
+  <div style="font-size:50px">🧠</div>
+  <b style="font-size:21px;display:block;margin-top:8px">오늘의 5문제를 다 풀었어요</b>
+  <p class="sm muted b mt8">${S.quizSolved}개 맞혀서 ${S.quizSolved * QUIZ_P}P를 받았어요</p>
+</div>
+<div class="sect-t">오늘의 퀴즈 다시 보기</div>
+${S.quizLog.map((l, i) => `<div class="qrev ${l.ok ? 'ok' : 'no'}">
+  <div class="between"><span class="qn">${i + 1}번</span><span class="qres">${l.ok ? '맞혔어요' : '틀렸어요'}</span></div>
+  <p class="qq">${l.q}</p>
+  <div class="qab"><span>내 답 <b>${l.mine}</b></span><span>정답 <b>${l.ans}</b></span></div>
+  <p class="qex">${l.ex}</p></div>`).join('')}
+<div class="pad mt16"><button class="btn ghost" onclick="nav('benefit')">혜택으로 돌아가기</button></div>
+<div style="height:12px"></div>`;
+  const q = S.quizPool[S.quizIdx], a = S.quizAnswered;
+  return `
+${head('OX 퀴즈')}
+<div class="pad center" style="margin-bottom:14px">
+  <b style="font-size:19px;letter-spacing:-.5px">하루 5문제, 정답을 맞추면 ${QUIZ_P}P를 받아요</b></div>
+<div class="qz"><span class="cat">${S.quizIdx + 1} / 5 문제</span><div class="q">${q[0]}</div></div>
+<div class="oxb mt16">
+  <button class="o ${a === 'O' ? 'sel' : ''}" onclick="answer('O')" ${a ? 'disabled' : ''}>O</button>
+  <button class="x ${a === 'X' ? 'sel' : ''}" onclick="answer('X')" ${a ? 'disabled' : ''}>X</button>
+</div>
+${a ? `<div class="ans ${a === q[1] ? 'ok' : 'no'}">
+  <b>정답은 ${q[1]}예요. ${a === q[1] ? `맞혔어요, ${QUIZ_P}P를 받았어요` : '아쉽게 틀렸어요'}</b>
+  <div style="margin-top:6px;font-weight:600">${q[2]}</div></div>
+<div class="pad mt16"><button class="btn pri" onclick="nextQuiz()">${S.quizIdx >= 4 ? '결과 보기' : '다음 문제'}</button></div>` : ''}`;
+};
+function answer(v) {
+  if (S.quizAnswered) return;
+  S.quizAnswered = v;
+  const q = S.quizPool[S.quizIdx], ok = v === q[1];
+  S.quizLog.push({ q: q[0], ans: q[1], mine: v, ex: q[2], ok });
+  if (ok) { S.quizSolved++; addPoint(QUIZ_P, '퀴즈 정답'); }
+  nav('quiz', null, true);
+}
+function nextQuiz() { S.quizIdx++; S.quizAnswered = null; nav('quiz', null, true); }
+
+/* ===== 설문 ===== */
+V.survey = () => {
+  if (S.surveyDone) return `${head('설문 참여')}
+<div class="pad center mt24"><div style="font-size:52px">📝</div>
+  <b style="font-size:21px;display:block;margin-top:10px">이번 달 설문을 마쳤어요</b>
+  <p class="sm muted b mt8">답변 고마워요. 다음 달에 새 설문으로 다시 만나요</p></div>`;
+  const i = S.surveyStep;
+  if (i === 0 && !S.surveyAns.started) return `${head('설문 참여')}
+<div class="pad center" style="margin-top:14px"><div style="font-size:52px">📝</div>
+  <b style="font-size:21px;display:block;margin-top:10px">10문항, 5분 정도 걸려요</b>
+  <p class="sm muted b mt8" style="line-height:1.6">좋은 말만 듣고 싶어서 묻는 게 아니에요.<br>불편했던 점을 그대로 적어주실수록 도움이 돼요.</p></div>
+<div class="card" style="margin:20px 16px 0"><b class="sm">이렇게 답해주세요</b>
+  <p class="sm muted b mt8" style="line-height:1.7">· 앞으로 어떨 것 같다가 아니라 <b>실제로 있었던 일</b>을 적어주세요<br>· 좋았던 점보다 <b>번거로웠던 점</b>이 더 도움이 돼요<br>· 모르겠으면 모르겠다고 적어도 괜찮아요</p></div>
+<div class="pad mt24"><button class="btn pri" onclick="S.surveyAns.started=1;nav('survey',null,true)">설문 시작하기</button></div>`;
+  const q = SURVEY[i], val = S.surveyAns[i];
+  return `
+${head(`설문 ${i + 1} / ${SURVEY.length}`)}
+<div class="pad"><div class="pbar"><i style="width:${i / SURVEY.length * 100}%"></i></div></div>
+<div class="pad mt24"><b style="font-size:20px;letter-spacing:-.5px;line-height:1.45;display:block">${q.q}</b>
+  <p class="sm muted b mt8" style="line-height:1.6">${q.h}</p></div>
+<div class="pad mt16">
+  ${q.o ? q.o.map((o, j) => `<button class="sbtn ${val === j ? 'on' : ''}" onclick="sPick(${j})">${o}</button>`).join('')
+      : `<textarea id="sopen" placeholder="${q.ph}" oninput="S.surveyAns[${i}]=this.value">${val || ''}</textarea>`}
+</div>
+<div class="pad mt16"><button class="btn pri" onclick="sNext()">${i === SURVEY.length - 1 ? '제출하고 300P 받기' : '다음'}</button>
+  ${q.o ? '' : '<button class="btn ghost mt8" onclick="sNext(1)">건너뛸게요</button>'}</div>`;
+};
+function sPick(j) { S.surveyAns[S.surveyStep] = j; nav('survey', null, true); }
+function sNext(skip) {
+  const q = SURVEY[S.surveyStep];
+  if (!skip && q.o && S.surveyAns[S.surveyStep] === undefined) return toast('하나를 골라주세요');
+  if (!skip && !q.o && !(S.surveyAns[S.surveyStep] || '').trim()) return toast('한 줄이라도 적어주세요');
+  if (S.surveyStep === SURVEY.length - 1) { S.surveyDone = true; addPoint(300, '설문 참여', { noDaily: 1 }); return nav('survey', null, true); }
+  S.surveyStep++; nav('survey', null, true);
+}
+
+/* ===== 친구 초대 ===== */
+V.invite = () => `
+${head('친구 초대')}
+<div class="pad center" style="margin-bottom:14px">
+  <b style="font-size:19px;letter-spacing:-.5px">나도 500P, 친구도 500P</b>
+  <p class="sm muted b mt8">친구가 가입하고 첫 걸음을 적립하면 지급돼요<br>초대받은 친구도 500P를 받아요</p>
+</div>
+<div class="card" style="margin:0 16px;text-align:center">
+  <p class="tiny muted b">내 초대 코드</p><div class="code mt8">${S.refCode}</div>
+  <div class="btn2 mt16">
+    <button class="btn kakao sm" onclick="shareKakao()">카카오톡으로 보내기</button>
+    <button class="btn line sm" onclick="copyLink()">링크 복사하기</button>
+  </div>
+</div>
+<div class="sect-t">초대 현황 <span>${S.invites.filter(i => i.st === 'paid').length}명 지급 완료</span></div>
+${S.invites.map(i => `<div class="inv">
+  <div><b>${i.n}</b><p>${i.st === 'wait' ? '아직 가입하지 않았어요' : i.st === 'join' ? '가입했어요. 첫 걸음 적립을 기다려요' : '양쪽 모두 500P를 받았어요'}</p></div>
+  <span class="st ${i.st}">${i.st === 'wait' ? '초대 보냄' : i.st === 'join' ? '가입 완료' : '지급 완료'}</span></div>`).join('') || '<div class="hint">아직 초대한 친구가 없어요</div>'}
+<div class="pad mt16"><button class="btn line" onclick="refreshInvite()">초대 상태 새로고침</button>
+<div class="hint">초대 포인트는 하루 적립 한도에 들어가지 않아요</div></div>
+<div class="pad mt16"><div class="notice2">한 계정에 초대 코드는 한 번만 쓸 수 있고, 같은 기기에서 만든 계정끼리는 지급되지 않아요.</div></div>
+<div style="height:12px"></div>`;
+function shareKakao() {
+  openSheet(`<h3>친구에게 보내기</h3><p class="sub">보낼 곳을 골라주세요</p>
+  <div class="mt16">${[['카카오톡', '#FEE500', 'K', '#3C1E1E'], ['문자 메시지', '#4CAF50', '💬', '#fff'], ['인스타그램 DM', '#C13584', '📷', '#fff'], ['더 보기', '#4B5563', '⋯', '#fff']]
+      .map(([n, c, t, tc]) => `<button class="pay" onclick="sendInvite('${n}')"><span class="cc" style="background:${c};color:${tc}">${t}</span>${n}</button>`).join('')}</div>
+  <div class="sharecard mt16"><b>나드리에서 걸으면 포인트가 쌓여요</b>
+    <p>내 코드 ${S.refCode}로 가입하면 500P를 바로 받아요</p><span>naduri.app/i/${S.refCode}</span></div>`);
+}
+function copyLink() { toast(`초대 링크를 복사했어요<br><b>naduri.app/i/${S.refCode}</b>`); }
+function sendInvite(via) { S.invites.unshift({ n: '친구' + (S.invites.length + 1), st: 'wait' }); closeSheet(); toast(`${via}(으)로 초대를 보냈어요`); nav('invite', null, true); }
+function refreshInvite() {
+  const j = S.invites.find(i => i.st === 'join'), w = S.invites.find(i => i.st === 'wait');
+  if (j) { j.st = 'paid'; addPoint(500, `${j.n} 초대 성공`, { noDaily: 1 }); }
+  else if (w) { w.st = 'join'; toast(`${w.n}님이 가입했어요`); }
+  else toast('새로운 소식이 없어요');
+  nav('invite', null, true);
+}
+
+/* ===== 저금 / 중단 / 입출금 ===== */
+function stakeSheet(k) {
+  if (k === 'c' && S.cash <= 0) {
+    return openSheet(`<h3>저금할 돈이 없어요</h3>
+    <p class="sub">이자를 받으려면 먼저 입금해야 해요.<br>포인트샵에서 포인트를 현금으로 바꿔도 여기에 쌓여요</p>
+    <button class="btn pri mt16" onclick="closeSheet();nav('deposit')">입금하러 가기</button>
+    <button class="btn ghost mt8" onclick="closeSheet();nav('shop')">포인트를 현금으로 바꾸기</button>`);
+  }
+  if (k === 'p' && S.points <= 0) return toast('저금할 포인트가 없어요');
+  const max = k === 'p' ? S.points : S.cash, u = k === 'p' ? 'P' : '원';
+  openSheet(`<h3>${k === 'p' ? '포인트' : '자산'} 저금하기</h3>
+  <p class="sub">넣은 만큼 매 순간 이자를 받아요. 언제든 그만 받을 수 있어요</p>
+  <input class="numin mt16" id="stk" type="number" step="any" value="${k === 'p' ? +max.toFixed(4) : Math.floor(max)}">
+  <p class="tiny muted b center mt8">넣을 수 있는 금액 ${k === 'p' ? fmtP(max) : fmt(max)}${u}</p>
+  <button class="btn grow mt16" onclick="doStake('${k}')">저금하기</button>`);
+}
+function doStake(k) {
+  const max = k === 'p' ? S.points : S.cash;
+  let v = +$('stk').value || 0;
+  if (k === 'c') v = Math.floor(v);
+  if (v <= 0) return toast('넣을 금액을 입력해주세요');
+  if (v > max + 1e-6) return toast('가진 금액보다 많아요');
+  v = Math.min(v, max);
+  if (k === 'p') { S.points -= v; S.pStake += v; S.history.unshift({ t: Date.now(), why: '포인트 저금', p: -v, u: 'P' }); }
+  else { S.cash -= v; S.cStake += v; logWon(-v, '자산 저금'); }
+  closeSheet(); toast(`${k === 'p' ? fmtP(v) + 'P' : won(v)}을 저금했어요`);
+  nav('grow', null, true);
+}
+function stopSheet(k, fromShop) {
+  const tot = k === 'p' ? pTotal() : cTotal(), u = k === 'p' ? 'P' : '원';
+  if (tot <= 0) return toast('이자를 받고 있는 금액이 없어요');
+  openSheet(`<h3>이자 그만 받을까요?</h3>
+  <p class="sub">${k === 'p' ? '저금한 포인트와 지금까지 받은 이자가<br>모두 내 포인트로 돌아와요' : '저금한 돈과 지금까지 받은 이자가<br>모두 내 자산으로 돌아와요'}</p>
+  <div class="card mt16" style="background:#F7F9FC;box-shadow:none;text-align:center">
+    <p class="tiny muted b">돌려받을 금액</p><b style="font-size:26px">${fmtd(tot, k === 'p' ? 4 : 2)}${u}</b></div>
+  <input class="numin mt16" id="unstk" type="number" step="any" value="${+tot.toFixed(4)}">
+  <p class="tiny muted b center mt8">일부만 빼도 괜찮아요. 소수점도 뺄 수 있어요</p>
+  <button class="btn danger mt16" onclick="doStop('${k}',${fromShop ? 1 : 0})">이자 그만 받기</button>
+  <button class="btn ghost mt8" onclick="closeSheet()">그냥 둘게요</button>`);
+}
+function doStop(k, fromShop) {
+  const tot = k === 'p' ? pTotal() : cTotal();
+  let v = +$('unstk').value || 0;
+  if (k === 'c') v = Math.floor(v);
+  if (v <= 0) return toast('금액을 입력해주세요');
+  v = Math.min(v, tot);
+  if (k === 'p') {
+    let rest = v; const fe = Math.min(S.pEarn, rest); S.pEarn -= fe; rest -= fe; S.pStake = Math.max(0, S.pStake - rest);
+    S.points += v; S.history.unshift({ t: Date.now(), why: '이자받기에서 빼기', p: v, u: 'P' });
+    toast(`${fmtP(v)}P가 내 포인트로 돌아왔어요`);
+  } else {
+    let rest = v; const fe = Math.min(S.cEarn, rest); S.cEarn -= fe; rest -= fe; S.cStake = Math.max(0, S.cStake - rest);
+    S.cash += v; logWon(v, '자산 저금 해제'); toast(`${won(v)}이 내 자산으로 돌아왔어요`);
+  }
+  closeSheet(); syncHome();
+  nav(fromShop ? 'shop' : 'grow', null, true);
+}
+function withdrawSheet() {
+  if (S.cash <= 0) {
+    return openSheet(`<h3>출금할 돈이 없어요</h3>
+    <p class="sub">이자를 받고 있는 돈은 바로 출금할 수 없어요.<br>먼저 이자를 그만 받거나 새로 입금해 주세요</p>
+    ${cTotal() > 0 ? `<button class="btn pri mt16" onclick="closeSheet();stopSheet('c')">이자 그만 받기</button>` : ''}
+    <button class="btn ${cTotal() > 0 ? 'ghost mt8' : 'pri mt16'}" onclick="closeSheet();nav('deposit')">입금하러 가기</button>`);
+  }
+  openSheet(`<h3>내 계좌로 출금하기</h3>
+  <p class="sub">이자를 받고 있지 않은 금액만 출금할 수 있어요</p>
+  <input class="numin mt16" id="wda" type="number" value="${Math.floor(S.cash)}">
+  <p class="tiny muted b center mt8">출금 가능 ${won(S.cash)}</p>
+  <div class="notice2 mt16">출금은 영업일 기준 1~3일이 걸려요. 신청 상태는 이자받기 화면에서 확인할 수 있어요.</div>
+  <button class="btn pri mt16" onclick="doWithdraw()">출금 신청하기</button>`);
+}
+function doWithdraw() {
+  const v = Math.min(Math.floor(+$('wda').value || 0), S.cash);
+  if (v <= 0) return toast('출금할 금액을 입력해주세요');
+  S.cash -= v; S.withdrawals.unshift({ amt: v, t: Date.now(), st: 'pending' });
+  logWon(-v, '계좌로 출금 신청');
+  closeSheet(); toast(`${won(v)} 출금을 신청했어요`);
+  nav('grow', null, true);
+}
+/* 비트코인 / 금 출금 */
+function sellSheet(k) {
+  const isB = k === 'btc', amt = isB ? S.hold.btc : S.hold.paxg, price = isB ? S.btc : S.paxg;
+  const name = isB ? '비트코인' : '금 PAXG';
+  if (amt <= 0) return toast(`보유한 ${name}이 없어요`);
+  openSheet(`<h3>${name} 출금하기</h3>
+  <p class="sub">다른 지갑으로 보내거나 원화로 바꿔서 내 자산에 넣을 수 있어요</p>
+  <div class="card mt16" style="background:#F7F9FC;box-shadow:none">
+    <div class="between"><span class="sm b muted">보유 수량</span><b>${isB ? amt.toFixed(8) + ' BTC' : amt.toFixed(6) + ' PAXG'}</b></div>
+    <div class="between mt8"><span class="sm b muted">지금 평가액</span><b>${won(amt * price)}</b></div>
+  </div>
+  <button class="btn pri mt16" onclick="doSell('${k}')">원화로 바꿔서 내 자산에 넣기</button>
+  <button class="btn line mt8" onclick="closeSheet();toast('외부 지갑 전송은 준비 중이에요')">다른 지갑으로 보내기</button>
+  <div class="notice2 mt16">외부 지갑으로 보낼 때는 GIWA 네트워크 주소로만 보낼 수 있어요.</div>`);
+}
+function doSell(k) {
+  const isB = k === 'btc', amt = isB ? S.hold.btc : S.hold.paxg, price = isB ? S.btc : S.paxg;
+  const v = Math.floor(amt * price);
+  if (isB) S.hold.btc = 0; else S.hold.paxg = 0;
+  S.cash += v; logWon(v, `${isB ? '비트코인' : '금 PAXG'} 원화 전환`);
+  closeSheet(); toast(`${won(v)}이 내 자산에 들어왔어요`);
+  nav('wallet', null, true);
+}
+
+/* ===== 입금하기 ===== */
+let depAmt = 50000;
+V.deposit = () => `
+${head('입금하기')}
+<div class="pad center" style="margin-bottom:6px"><p class="sm muted b">넣을 만큼 조절하거나 직접 입력해요</p></div>
+<div class="amt" id="dep-lab">${depLabel(depAmt)}</div>
+<div class="pad mt8">
+  <input type="range" id="dep-range" min="0" max="1000000" step="10000" value="${depAmt}" oninput="depChange(this.value)">
+  <div class="between tiny muted b mt8"><span>0</span><span>100만 원</span></div>
+  <div class="maninput mt16">
+    <input class="numin" id="dep-num" type="number" step="1" min="0" max="50000" value="${depAmt / 10000}" oninput="depChange(this.value,1)">
+    <span class="unit">만 원</span>
+  </div>
+  <p class="tiny muted b center mt8">직접 입력은 50,000만 원까지 돼요</p>
+  <button class="btn pri mt16" onclick="payScreen()">입금하기</button>
+  <div class="notice2 mt16">입금한 돈은 <b>내 지갑</b>에서 확인할 수 있어요. 이자받기에서 저금하기를 눌러야 이자가 붙기 시작해요.</div>
+</div>`;
+function depLabel(v) { v = +v; return v >= 10000 ? `${(v / 10000).toLocaleString('ko-KR')}만 <small>원</small>` : `${fmt(v)} <small>원</small>`; }
+function depChange(v, fromNum) {
+  /* 슬라이더는 원 단위, 직접 입력은 만 원 단위예요 */
+  depAmt = fromNum ? Math.max(0, Math.min(500000000, Math.floor(+v || 0) * 10000))
+    : Math.max(0, Math.min(1000000, Math.round(+v / 10000) * 10000));
+  $('dep-lab').innerHTML = depLabel(depAmt);
+  if (fromNum) $('dep-range').value = Math.min(1000000, depAmt);
+  else $('dep-num').value = depAmt / 10000;
+}
+const PAYS = [['토스', '#0064FF', 't', '#fff'], ['카카오페이', '#FEE500', 'K', '#3C1E1E'], ['네이버페이', '#03C75A', 'N', '#fff'],
+['신용·체크카드', '#4B5563', '💳', '#fff'], ['계좌이체', '#2F6BF3', '🏦', '#fff']];
+function payScreen() {
+  if (depAmt <= 0) return toast('입금할 금액을 정해주세요');
+  openSheet(`<h3>${won(depAmt)}을 입금해요</h3><p class="sub">결제 수단을 선택해주세요</p>
+  <div class="mt16">${PAYS.map(([n, c, t, tc]) => `<button class="pay" onclick="doDeposit('${n}')"><span class="cc" style="background:${c};color:${tc}">${t}</span>${n}</button>`).join('')}</div>`);
+}
+function doDeposit(m) { S.cash += depAmt; logWon(depAmt, `${m} 입금`); closeSheet(); toast(`${m}으로 ${won(depAmt)}을 입금했어요`); nav('grow', null, true); }
+
+/* ===== 구매 ===== */
+function buy(it) {
+  const can = S.points >= it.p;
+  openSheet(`<h3>${it.n}</h3>
+  <p class="sub">${it.br}${it.live ? ` · 지금 ${liveQty(it)}` : (it.won ? ` · ${won(it.won)} 상당` : '')}</p>
+  <div class="card mt16" style="background:#F7F9FC;box-shadow:none">
+    <div class="between"><span class="sm b muted">필요한 포인트</span><b style="font-size:18px">${fmt(it.p)}P</b></div>
+    <div class="between mt8"><span class="sm b muted">쓸 수 있는 포인트</span><b style="font-size:18px;color:${can ? 'var(--grow-deep)' : 'var(--red)'}">${fmtP(S.points)}P</b></div>
+    ${pTotal() > 0 ? `<div class="between mt8"><span class="sm b muted">이자 받는 중</span><b style="font-size:14px;color:var(--dim)" id="sheet-stake">${fmtd(pTotal(), 4)}P</b></div>` : ''}
+  </div>
+  ${it.toCash ? '<div class="notice2 mt16">바꾼 현금은 내 자산에 쌓여요. 바로 출금해도 되고, 두고 이자를 받아도 돼요.</div>' : ''}
+  ${it.live ? '<div class="notice2 mt16">값이 오르내리는 자산이에요. 산 금액보다 적어질 수 있고, 실물 배송은 지원하지 않아요.</div>' : ''}
+  ${can ? `<button class="btn pri mt16" onclick='doBuy(${J(it)})'>${fmt(it.p)}P로 바꾸기</button>`
+      : `<div class="notice2 mt16">${fmt(it.p - S.points)}P가 모자라요.${pTotal() >= it.p - S.points ? ' 이자 받는 포인트를 빼면 지금 바꿀 수 있어요.' : ''}</div>
+     ${pTotal() > 0 ? `<button class="btn grow mt16" onclick="closeSheet();stopSheet('p',1)">사용하기</button>` : ''}
+     <button class="btn ghost mt8" onclick="closeSheet()">닫기</button>`}`);
+}
+function doBuy(it) {
+  if (S.points < it.p) { closeSheet(); return toast('포인트가 모자라요'); }
+  spendPoint(it.p, it.n);
+  if (it.live === 'btc') S.hold.btc += it.won / S.btc;
+  else if (it.live === 'paxg') S.hold.paxg += it.won / S.paxg;
+  else if (it.toCash) { S.cash += it.won; logWon(it.won, '포인트를 현금으로 전환'); }
+  else {
+    S.coupons.unshift({ n: it.n, e: it.e, br: it.br, t: Date.now(), exp: Date.now() + 90 * 86400000,
+      code: 'N' + Math.random().toString(36).slice(2, 6).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase(), used: false });
+  }
+  closeSheet();
+  toast('구매가 끝났어요<br>내 지갑에서 확인하세요');
+  nav('shop', null, true);
+}
+
+/* ===== 내정보 ===== */
+V.me = () => `
+${head('내정보', false)}
+<div class="card" style="margin:0 16px;display:flex;align-items:center;gap:14px">
+  <div style="width:54px;height:54px;border-radius:50%;background:var(--blue-soft);display:grid;place-items:center;font-size:26px">🙂</div>
+  <div style="flex:1"><b style="font-size:17px">${S.nick}</b><p class="tiny muted b mt8">쓸 수 있는 포인트 ${fmtP(S.points)}P</p></div>
+  <button class="btn ghost sm" style="width:auto;padding:9px 14px" onclick="editNick()">수정</button>
+</div>
+<div class="sect-t">초대</div>
+<div class="mlist">
+  <button onclick="nav('invite')">친구 초대하기<span>500P</span></button>
+  <button onclick="refSheet()">추천인 코드 입력<span>${S.refUsed ? '등록됨' : '미등록'}</span></button>
+</div>
+<div class="sect-t">알림</div>
+<div class="mlist"><button onclick="event.stopPropagation()">푸시 알림<span class="switch ${S.push ? 'on' : ''}" onclick="togglePush2(this)"><i></i></span></button></div>
+<div class="sect-t">내 활동</div>
+<div class="mlist">
+  <button onclick="nav('history')">내 활동 기록<span>오늘 ${fmt(S.todayPoint)}P</span></button>
+  <button onclick="nav('wallet')">내 지갑<span>${won(netWorth())}</span></button>
+  <button onclick="toast('연속 출석 배지를 갖고 있어요')">보유 배지<span>🔥 ${S.attTotal}일</span></button>
+</div>
+<div class="sect-t">고객 지원</div>
+<div class="mlist">
+  <button onclick="toast('새 공지가 없어요')">공지사항<span>›</span></button>
+  <button onclick="toast('자주 묻는 질문을 준비 중이에요')">자주 묻는 질문<span>›</span></button>
+  <button onclick="toast('평일 10시~18시에 운영해요')">고객센터<span>›</span></button>
+  <button onclick="toast('약관 및 정책')">약관 및 정책<span>›</span></button>
+  <button onclick="toast('나드리 v6 프로토타입')">버전 정보<span>6.0.0</span></button>
+</div>
+<div class="pad mt24"><button class="btn line" onclick="nav('onboard')">로그아웃</button></div>`;
+function editNick() {
+  openSheet(`<h3>닉네임 설정</h3><p class="sub">앱에서 보이는 이름이에요</p>
+  <input class="numin mt16" id="nick" type="text" value="${S.nick}" style="font-size:17px">
+  <button class="btn pri mt16" onclick="S.nick=$('nick').value||S.nick;closeSheet();nav('me',null,true);toast('닉네임을 바꿨어요')">저장하기</button>`);
+}
+function togglePush2(el) { S.push = !S.push; el.classList.toggle('on', S.push); }
+
+
+/* ===== 지갑 고급 설정 : 개인키 / 복구 구문 ===== */
+function advSheet() {
+  openSheet(`<h3>고급 설정</h3>
+  <p class="sub">지갑을 다른 앱으로 옮기거나 직접 관리하려는 분들을 위한 기능이에요</p>
+  <div class="dangerbox mt16">
+    <b>⚠️ 대부분의 분들은 들어가지 않으셔도 돼요</b>
+    <p>나드리는 지갑을 대신 안전하게 보관하고 있어요. 아래 정보를 꺼내지 않아도 앱을 쓰는 데 아무 문제가 없어요.</p>
+  </div>
+  <div class="risks mt16">
+    <div><span>🚨</span><div><b>남에게 보여주면 자산을 전부 잃어요</b><p>복구 구문과 개인키를 아는 사람은 누구나 이 지갑의 돈을 마음대로 가져갈 수 있어요. 비밀번호와 달리 바꿀 수도 없어요.</p></div></div>
+    <div><span>🎣</span><div><b>물어보는 사람은 100% 사기예요</b><p>나드리 고객센터, 직원, 어떤 기관도 복구 구문을 묻지 않아요. 이벤트나 에어드랍을 미끼로 입력을 요구하면 전부 사기예요.</p></div></div>
+    <div><span>📵</span><div><b>사진, 메모앱, 클라우드에 저장하면 위험해요</b><p>휴대폰이 해킹되거나 계정이 털리면 그대로 새어 나가요. 꼭 필요하면 종이에 적어 오프라인에 보관하세요.</p></div></div>
+    <div><span>↩️</span><div><b>한 번 새어 나가면 되돌릴 수 없어요</b><p>블록체인 거래는 취소나 환불이 되지 않아요. 나드리도 도와드릴 방법이 없어요.</p></div></div>
+  </div>
+  <button class="btn ghost mt16" onclick="closeSheet()">돌아갈게요</button>
+  <button class="btn danger mt8" onclick="advConfirm()">위험을 이해했어요. 그래도 볼래요</button>`);
+}
+function advConfirm() {
+  openSheet(`<h3>정말 열어볼까요</h3>
+  <p class="sub">지금 주변에 화면을 보고 있는 사람이 없는지 확인해주세요</p>
+  <div class="dangerbox mt16">
+    <b>이 화면을 캡처하지 마세요</b>
+    <p>캡처한 사진은 갤러리와 클라우드에 남아요. 그 경로로 자산을 잃는 사고가 가장 많아요.</p>
+  </div>
+  <button class="btn ghost mt16" onclick="closeSheet()">그만둘게요</button>
+  <button class="btn danger mt8" onclick="advReveal()">확인했어요. 열어주세요</button>`);
+}
+function advReveal() {
+  S.keyShown = true;
+  openSheet(`<h3>복구 구문과 개인키</h3>
+  <p class="sub">가려진 부분을 눌러야 보여요</p>
+  <div class="sect-t" style="margin:18px 0 8px 0">복구 구문 12단어</div>
+  <div class="hidewrap blur" onclick="this.classList.toggle('blur')">
+    <div class="seedbox">${SEED.map((s, i) => `<span><i>${i + 1}</i>${s}</span>`).join('')}</div>
+    <span class="cover">눌러서 보기</span>
+  </div>
+  <div class="sect-t" style="margin:18px 0 8px 0">개인키</div>
+  <div class="hidewrap blur" onclick="this.classList.toggle('blur')">
+    <div class="keybox">${PRIVKEY}</div>
+    <span class="cover">눌러서 보기</span>
+  </div>
+  <div class="dangerbox mt16">
+    <b>지금 본 내용을 누구에게도 알려주지 마세요</b>
+    <p>나드리 직원을 포함해 어떤 사람도 이 정보를 물어볼 일이 없어요.</p>
+  </div>
+  <button class="btn line mt16" onclick="toast('복사했어요. 안전한 곳에만 붙여넣으세요')">복구 구문 복사하기</button>
+  <button class="btn pri mt8" onclick="closeSheet()">다 확인했어요</button>`);
+}
+
+/* ===== 실시간 틱 ===== */
+function tick() {
+  const now = Date.now(), dt = Math.min(1, (now - S.lastTick) / 1000); S.lastTick = now;
+  if (S.dayStamp !== today()) resetDay();
+  if (S.pStake > 0) { const g = pPerSec() * dt; S.pEarn += g; S.pToday += g; }
+  if (S.cStake > 0) { const g = cPerSec() * dt; S.cEarn += g; S.cToday += g; }
+  const set = (id, html) => { const e = $(id); if (e) e.innerHTML = html; };
+  set('ip-total', growNum(pTotal(), 7) + '<small>P</small>');
+  set('ip-today', '+' + fmtd(S.pToday, 4) + 'P');
+  set('ic-total', growNum(cTotal(), 4) + '<small>원</small>');
+  set('ic-today', '+' + fmtd(S.cToday, 4) + '원');
+  set('ic-idle', won(S.cash));
+  set('shop-stake', `🌱 이자 받는 중 ${fmtd(pTotal(), 4)}P`);
+  set('sheet-stake', fmtd(pTotal(), 4) + 'P');
+  const hs = $('h-stake'); if (hs) hs.textContent = fmtd(pTotal(), 2) + 'P';
+  const ha = $('h-asset'); if (ha) ha.textContent = won(S.cash + cTotal());
+  const wt = $('w-total'); if (wt) wt.textContent = won(netWorth());
+}
+function resetDay() {
+  S.dayStamp = today();
+  S.pToday = 0; S.cToday = 0; S.todayPoint = 0; S.history = [];
+  S.bonusGot = [0, 0, 0]; S.attToday = false; S.stepClaimed = false;
+  S.adViews = 0; S.gamePlays = 0; S.gameAdReady = false;
+  S.rouletteUsed = false; S.rouletteBoost = false;
+  S.quizSolved = 0; S.quizPool = []; S.quizIdx = 0; S.quizAnswered = null; S.quizLog = [];
+}
+
+/* 오라클 시세 */
+setInterval(() => {
+  S.btc = Math.round(S.btc * (1 + (Math.random() - .5) * 0.0016));
+  S.paxg = Math.round(S.paxg * (1 + (Math.random() - .5) * 0.0008));
+  document.querySelectorAll('.livq').forEach(el => {
+    const k = el.dataset.live, w = +el.dataset.won;
+    el.textContent = '지금 ' + (k === 'btc' ? (w / S.btc).toFixed(8) + ' BTC' : (w / S.paxg).toFixed(6) + ' PAXG');
+  });
+}, 2500);
+
+/* 후기 롤링 */
+let rvI = 0;
+setInterval(() => {
+  const t = $('rv-track'); if (!t) return;
+  rvI++; t.style.transition = '';
+  t.style.transform = `translateY(-${rvI * 58}px)`;
+  if (rvI >= REVIEWS.length) setTimeout(() => {
+    t.style.transition = 'none'; rvI = 0; t.style.transform = 'translateY(0)';
+    setTimeout(() => t.style.transition = '', 40);
+  }, 520);
+}, 2800);
+
+setInterval(() => {
+  const d = new Date();
+  $('clock').textContent = d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+}, 1000);
+setInterval(tick, 100);
+$('stepchip').textContent = fmt(S.steps) + ' 걸음';
+nav('onboard');
+
+</script>
+</body>
+</html>

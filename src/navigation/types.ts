@@ -1,22 +1,20 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
-/** 하단 탭 */
+/** 하단 6탭 (v10) */
 export type MainTabParamList = {
-  Home: undefined;
-  Boost: undefined;
-  Profile: undefined;
+  Home: undefined; // 홈
+  Benefit: undefined; // 혜택
+  Interest: undefined; // 이자받기
+  Shop: undefined; // 포인트샵
+  Wallet: undefined; // 내 지갑
+  Profile: undefined; // 내정보
 };
 
-/** 루트 스택 — 온보딩 + 탭 + 불리기 전환 플로우 */
+/** 루트 스택 — 온보딩 + 탭 + 원화 예치 플로우 */
 export type RootStackParamList = {
   Onboarding: undefined;
-  Login: undefined;
   Main: NavigatorScreenParams<MainTabParamList> | undefined;
-  BoostIntro: undefined;
-  BoostDashboard: undefined;
-  WithdrawMoment: undefined;
-  Principal: undefined;
-  Done: { amount: number };
+  Deposit: undefined; // 원화 입금
 };
 
 declare global {

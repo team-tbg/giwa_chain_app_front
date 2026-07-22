@@ -1,17 +1,17 @@
 /**
- * 1. 홈 · 걷기/적립 (리텐션 엔진).
- * MVP-now: 걸음 수 / 포인트 조회 / 받기·불리기 진입.
- * 규칙: 퍼센트·풀·코인명 노출 금지. 버튼 하나, 단어 하나.
+ * 1. 홈 · 걷기/적립 (리텐션 엔진) — v10 프로토타입 레이아웃.
+ * 구성: 상단바 · 걸음 링 · 걸어서 받을 포인트 · 오늘 모은 포인트 · 자산 스트립 · 퀵 메뉴 · 불리기 배너.
+ * 규칙: 퍼센트·풀 노출 금지. 포인트(P)/원 표기. 미구현 화면은 정직하게 "준비 중" 안내.
  */
 import React, { useMemo } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { Screen } from '../components/Screen';
-import { Amount, Button, Card, Pill, Row } from '../components/ui';
-import { colors, typography } from '../theme/theme';
-import { useAppState, won } from '../state/AppState';
+import { ProgressRing } from '../components/ui';
+import { colors, radii, cardShadow } from '../theme/theme';
+import { DAILY_CAP, useAppState, won, fmtP, claimableP, pTotal, cTotal } from '../state/AppState';
 import { usePedometer } from '../hooks/usePedometer';
 import type { MainTabParamList, RootStackParamList } from '../navigation/types';
 
@@ -20,120 +20,224 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<RootStackParamList>
 >;
 
+const soon = (label: string) =>
+  Alert.alert(label, '곧 만나요. 지금은 걷고 모으고 불리는 것부터 시작해요.');
+
 export function HomeScreen({ navigation }: Props) {
-  const { user, steps: mockSteps, goal, pendingPoints, balance, collect } = useAppState();
+  const s = useAppState();
+  const { user, goal, streak, points, todayEarned, cash, claimSteps } = s;
   const ped = usePedometer();
 
-  const withdraw = () =>
-    Alert.alert('보냈어요', `통장으로 ${won(balance)}원을 보내드렸어요.`);
-
   // 실기기에서 센서가 잡히면 실제 걸음, 아니면 데모용 목업.
-  const steps = ped.available && ped.todaySteps > 0 ? ped.todaySteps : mockSteps;
-  const pct = useMemo(() => Math.min(100, (steps / goal) * 100), [steps, goal]);
+  const steps = ped.available && ped.todaySteps > 0 ? ped.todaySteps : s.steps;
+  const prog = useMemo(() => Math.min(1, steps / goal), [steps, goal]);
+  const kcal = Math.round(steps * 0.0687);
+  const km = (steps * 0.00064).toFixed(1);
+  const todayPct = Math.min(100, (todayEarned / DAILY_CAP) * 100);
+  const claim = claimableP(s);
+  const staked = pTotal(s);
+  const asset = cash + cTotal(s);
 
   return (
     <Screen>
-      <Row style={styles.header}>
-        <View>
-          <Text style={styles.hi}>{user ? `${user.name}님 👋` : '안녕하세요 👋'}</Text>
-          <Text style={styles.h2}>오늘도 걸어볼까요?</Text>
+      {/* 상단바 */}
+      <View style={styles.topbar}>
+        <Pressable style={styles.balancePill} onPress={() => navigation.navigate('Shop')}>
+          <View style={styles.coin}><Text style={styles.coinTxt}>P</Text></View>
+          <Text style={styles.balanceTxt}>{fmtP(points)}</Text>
+        </Pressable>
+        <View style={styles.topIcons}>
+          <Pressable style={styles.iconBtn} onPress={() => soon('알림')}>
+            <Text style={styles.iconEmoji}>🔔</Text>
+          </Pressable>
+          <Pressable style={styles.iconBtn} onPress={() => navigation.navigate('Profile')}>
+            <Text style={styles.iconEmoji}>👤</Text>
+          </Pressable>
         </View>
-        <Pill tone="honey">🔥 7일째</Pill>
-      </Row>
+      </View>
 
-      {/* 오늘 걸음 */}
-      <Card>
-        <Row>
-          <Text style={styles.cardLabel}>오늘 걸음</Text>
-          <Pill>목표 {won(goal)}</Pill>
-        </Row>
-        <View style={styles.stepsRow}>
-          <Text style={styles.steps}>{won(steps)}</Text>
-          <Text style={styles.stepsUnit}>걸음</Text>
-        </View>
-        {/* 걷는 길 시그니처 */}
-        <View style={styles.path}>
-          <View style={styles.track} />
-          <View style={[styles.fill, { width: `${pct}%` }]} />
-          <Text style={[styles.walker, { left: `${pct}%` }]}>🚶</Text>
-          <Text style={styles.flag}>🚩</Text>
-        </View>
-      </Card>
+      {/* 연속 걷기 · 날씨 */}
+      <View style={styles.chipRow}>
+        <Pressable style={styles.chip} onPress={() => navigation.navigate('Benefit')}>
+          <Text style={styles.chipTxt}>🔥 {streak}일 연속 걷는 중</Text>
+        </Pressable>
+        <Text style={styles.weather}>☀️ 서울 송파구 · 25.6°</Text>
+      </View>
 
-      {/* 받을 수 있는 리워드 */}
-      <Card style={styles.mt}>
-        <Row>
-          <View>
-            <Text style={styles.cardLabel}>받을 수 있는 리워드</Text>
-            <View style={styles.mt4}>
-              <Amount value={won(pendingPoints)} color={colors.honey} size={32} />
-            </View>
+      {/* 걸음 링 */}
+      <View style={styles.hero}>
+        <ProgressRing progress={prog}>
+          <Text style={styles.ringLab}>오늘의 걸음</Text>
+          <Text style={styles.ringNum}>{won(steps)}</Text>
+          <Text style={styles.ringGoal}>목표 {won(goal)}</Text>
+        </ProgressRing>
+        <View style={styles.stat2}>
+          <View style={styles.statCell}>
+            <Text style={styles.statNum}>{won(kcal)}<Text style={styles.statUnit}> kcal</Text></Text>
+            <Text style={styles.statLab}>태운 열량</Text>
           </View>
-          <Button
-            label={pendingPoints > 0 ? '받기' : '내일 또'}
-            variant="honey"
-            disabled={pendingPoints <= 0}
-            onPress={collect}
-            style={styles.collectBtn}
-          />
-        </Row>
-      </Card>
-
-      {/* 모은 리워드 */}
-      <Card style={styles.mt}>
-        <Text style={styles.cardLabel}>지금까지 모은 리워드</Text>
-        <View style={styles.balance}>
-          <Amount value={won(balance)} />
+          <View style={styles.statCell}>
+            <Text style={styles.statNum}>{km}<Text style={styles.statUnit}> km</Text></Text>
+            <Text style={styles.statLab}>걸은 거리</Text>
+          </View>
         </View>
-        <Row style={styles.actions}>
-          <Button label="받기" variant="plain" style={styles.flex1} onPress={withdraw} />
-          <Button
-            label="✨ 불리기"
-            variant="primary"
-            style={styles.flex14}
-            onPress={() => navigation.navigate('BoostIntro')}
-          />
-        </Row>
-        <Text style={styles.hint}>그냥 두면 그대로예요. 불리면 매일 조금씩 늘어나요.</Text>
-      </Card>
+      </View>
+
+      {/* 걸어서 받을 포인트 */}
+      <View style={styles.claim}>
+        <View style={styles.flex1}>
+          <Text style={styles.claimLab}>걸어서 받을 포인트</Text>
+          <Text style={styles.claimAmt}>{fmtP(claim)}P</Text>
+        </View>
+        <Pressable
+          style={[styles.claimBtn, claim <= 0 && styles.claimBtnOff]}
+          disabled={claim <= 0}
+          onPress={claimSteps}
+        >
+          <Text style={[styles.claimBtnTxt, claim <= 0 && styles.claimBtnTxtOff]}>
+            {claim > 0 ? '받기' : '받았어요'}
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* 오늘 모은 포인트 (일일 한도) */}
+      <Pressable style={styles.today} onPress={() => soon('활동 기록')}>
+        <View style={styles.todayHead}>
+          <Text style={styles.todayLab}>오늘 모은 포인트</Text>
+          <Text style={styles.todayVal}>{fmtP(todayEarned)} / {fmtP(DAILY_CAP)}P</Text>
+        </View>
+        <View style={styles.pbarTrack}>
+          <View style={[styles.pbarFill, { width: `${todayPct}%` }]} />
+        </View>
+      </Pressable>
+
+      {/* 자산 스트립 */}
+      <View style={styles.assetStrip}>
+        <Pressable style={styles.asset} onPress={() => navigation.navigate('Interest')}>
+          <Text style={styles.assetLab}>이자 받는 포인트</Text>
+          <Text style={styles.assetVal}>{fmtP(staked)}P</Text>
+        </Pressable>
+        <Pressable style={styles.asset} onPress={() => navigation.navigate('Wallet')}>
+          <Text style={styles.assetLab}>내 자산</Text>
+          <Text style={styles.assetVal}>{won(asset)}원</Text>
+        </Pressable>
+      </View>
+
+      {/* 퀵 메뉴 */}
+      <View style={styles.quickRow}>
+        <QuickBtn emoji="📅" bg={colors.primarySoft} label="출석체크" dot onPress={() => navigation.navigate('Benefit')} />
+        <QuickBtn emoji="💰" bg={colors.goldSoft} label="보너스" dot onPress={() => navigation.navigate('Benefit')} />
+        <QuickBtn emoji="🧠" bg="#FDECEC" label="OX퀴즈" dot onPress={() => navigation.navigate('Benefit')} />
+        <QuickBtn emoji="🎁" bg="#F0E8FE" label="뽑기" onPress={() => navigation.navigate('Benefit')} />
+      </View>
+      <View style={styles.quickWide}>
+        <QuickWide emoji="🎮" bg={colors.rewardSoft} label="게임하고 받기" onPress={() => navigation.navigate('Benefit')} />
+        <QuickWide emoji="📺" bg="#FDECEC" label="영상 보고 받기" onPress={() => navigation.navigate('Benefit')} />
+      </View>
+
+      {/* 불리기 배너 */}
+      <Pressable style={styles.growBanner} onPress={() => navigation.navigate('Interest')}>
+        <View style={styles.flex1}>
+          <Text style={styles.growTitle}>모은 포인트를 늘려봐요</Text>
+          <Text style={styles.growSub}>넣어두면 매일 이자가 붙어요</Text>
+        </View>
+        <Text style={styles.pig}>🐷</Text>
+      </Pressable>
     </Screen>
   );
 }
 
+function QuickBtn({ emoji, bg, label, dot, onPress }: {
+  emoji: string; bg: string; label: string; dot?: boolean; onPress: () => void;
+}) {
+  return (
+    <Pressable style={styles.qb} onPress={onPress}>
+      {dot && <View style={styles.qbDot} />}
+      <View style={[styles.qbIc, { backgroundColor: bg }]}><Text style={styles.qbEmoji}>{emoji}</Text></View>
+      <Text style={styles.qbLab}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function QuickWide({ emoji, bg, label, onPress }: {
+  emoji: string; bg: string; label: string; onPress: () => void;
+}) {
+  return (
+    <Pressable style={styles.qw} onPress={onPress}>
+      <View style={[styles.qbIc, { backgroundColor: bg }]}><Text style={styles.qbEmoji}>{emoji}</Text></View>
+      <Text style={styles.qbLab}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  header: { marginTop: 6, marginBottom: 14 },
-  hi: { ...typography.label, color: colors.muted, fontWeight: '600' },
-  h2: { ...typography.heading, color: colors.ink },
-  cardLabel: { ...typography.label, color: colors.muted },
-  stepsRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 6 },
-  steps: { ...typography.bigNum, color: colors.ink },
-  stepsUnit: { color: colors.muted, fontWeight: '700' },
-  path: { height: 60, marginTop: 8, justifyContent: 'center' },
-  track: {
-    position: 'absolute',
-    left: 6,
-    right: 6,
-    top: 34,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: colors.line,
+  topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
+  balancePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    backgroundColor: colors.surface, borderRadius: radii.pill, paddingVertical: 7, paddingHorizontal: 13,
+    ...cardShadow,
   },
-  fill: {
-    position: 'absolute',
-    left: 6,
-    top: 34,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.mint,
+  coin: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.gold, alignItems: 'center', justifyContent: 'center' },
+  coinTxt: { color: '#fff', fontSize: 11, fontWeight: '900' },
+  balanceTxt: { fontSize: 14, fontWeight: '800', color: colors.ink },
+  topIcons: { flexDirection: 'row', gap: 8 },
+  iconBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...cardShadow },
+  iconEmoji: { fontSize: 17 },
+
+  chipRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 },
+  chip: { backgroundColor: colors.primarySoft, borderRadius: radii.pill, paddingVertical: 6, paddingHorizontal: 11 },
+  chipTxt: { fontSize: 12, fontWeight: '800', color: colors.primaryDeep },
+  weather: { fontSize: 12, fontWeight: '700', color: colors.muted },
+
+  hero: { backgroundColor: colors.surface, borderRadius: 24, padding: 18, marginTop: 14, alignItems: 'center', ...cardShadow },
+  ringLab: { fontSize: 12, fontWeight: '700', color: colors.muted },
+  ringNum: { fontSize: 42, fontWeight: '900', letterSpacing: -2, color: colors.ink, fontVariant: ['tabular-nums'], lineHeight: 48 },
+  ringGoal: { fontSize: 12, fontWeight: '700', color: colors.dim, marginTop: 2 },
+  stat2: { flexDirection: 'row', width: '100%', marginTop: 8 },
+  statCell: { flex: 1, alignItems: 'center' },
+  statNum: { fontSize: 17, fontWeight: '900', color: colors.ink },
+  statUnit: { fontSize: 12, fontWeight: '700', color: colors.muted },
+  statLab: { fontSize: 11, fontWeight: '600', color: colors.muted, marginTop: 2 },
+
+  claim: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+    backgroundColor: colors.surface, borderRadius: radii.md, paddingVertical: 14, paddingHorizontal: 16, marginTop: 12, ...cardShadow,
   },
-  walker: { position: 'absolute', top: 8, fontSize: 28, marginLeft: -14 },
-  flag: { position: 'absolute', right: 0, top: 6, fontSize: 24 },
-  mt: { marginTop: 14 },
-  mt4: { marginTop: 2 },
-  collectBtn: { paddingHorizontal: 22, height: 52, alignSelf: 'center' },
-  balance: { marginTop: 4, marginBottom: 16 },
-  actions: { gap: 11 },
+  claimLab: { fontSize: 12, fontWeight: '700', color: colors.muted },
+  claimAmt: { fontSize: 24, fontWeight: '900', letterSpacing: -1, color: colors.ink, marginTop: 2 },
+  claimBtn: { backgroundColor: colors.primary, borderRadius: 13, paddingVertical: 12, paddingHorizontal: 22 },
+  claimBtnOff: { backgroundColor: colors.line },
+  claimBtnTxt: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  claimBtnTxtOff: { color: colors.dim },
+
+  today: { marginTop: 12 },
+  todayHead: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 7 },
+  todayLab: { fontSize: 12, fontWeight: '800', color: colors.muted },
+  todayVal: { fontSize: 12, fontWeight: '800', color: colors.ink, fontVariant: ['tabular-nums'] },
+  pbarTrack: { height: 8, backgroundColor: colors.line, borderRadius: radii.pill, overflow: 'hidden' },
+  pbarFill: { height: '100%', backgroundColor: colors.reward, borderRadius: radii.pill },
+
+  assetStrip: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  asset: { flex: 1, backgroundColor: colors.surface, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14, ...cardShadow },
+  assetLab: { fontSize: 11, fontWeight: '700', color: colors.muted },
+  assetVal: { fontSize: 16, fontWeight: '900', letterSpacing: -0.5, color: colors.ink, marginTop: 3 },
+
+  quickRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  quickWide: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  qb: { flex: 1, backgroundColor: colors.surface, borderRadius: 18, paddingVertical: 13, alignItems: 'center', gap: 7, ...cardShadow },
+  qw: { flex: 1, flexDirection: 'row', backgroundColor: colors.surface, borderRadius: 18, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', gap: 9, ...cardShadow },
+  qbIc: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  qbEmoji: { fontSize: 19 },
+  qbLab: { fontSize: 12, fontWeight: '800', color: colors.ink },
+  qbDot: { position: 'absolute', top: 9, right: 11, width: 7, height: 7, borderRadius: 4, backgroundColor: colors.red, zIndex: 1 },
+
+  growBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+    backgroundColor: colors.panelDeep, borderRadius: radii.lg, paddingVertical: 16, paddingHorizontal: 18, marginTop: 14,
+  },
+  growTitle: { fontSize: 15, fontWeight: '800', color: colors.primaryDeep },
+  growSub: { fontSize: 12, fontWeight: '600', color: '#6076A0', marginTop: 3 },
+  pig: { fontSize: 38 },
+
   flex1: { flex: 1 },
-  flex14: { flex: 1.4 },
-  hint: { ...typography.caption, color: colors.muted, textAlign: 'center', marginTop: 11 },
 });
