@@ -102,8 +102,8 @@ export function HomeScreen({ navigation }: Props) {
         {__DEV__ && (
           <View style={styles.devSteps}>
             <Text style={styles.devStepsTxt}>
-              🔧 걸음 소스: {ped.source === 'health' ? 'Health Connect (삼성헬스 등 OS 데이터)'
-                : ped.source === 'accel' ? '가속도계 폴백 (포그라운드만)'
+              🔧 걸음 소스: {ped.source === 'pedometer' ? '만보 센서(하드웨어) — 표준 권한'
+                : ped.source === 'accel' ? '가속도계 폴백'
                 : '확인 중…'}
             </Text>
             {!!ped.error && <Text style={styles.devStepsTxt}>ⓘ {ped.error}</Text>}

@@ -40,8 +40,7 @@
         }
       ],
       "@react-native-google-signin/google-signin",
-      "react-native-health-connect",
-      "./plugins/withHealthConnectDelegate",
+      "./plugins/withStepPermission",
       [
         "expo-build-properties",
         {

@@ -1,46 +1,18 @@
 /**
- * 만보기 훅 — 걸음수 소스 우선순위:
- *  1) Android: Health Connect = OS가 백그라운드(앱 꺼져 있어도)에서 센 "오늘 총 걸음" 조회 (캐시워크 방식)
- *  2) 폴백: 가속도계 실시간 피크 감지 (앱 포그라운드일 때만, iOS/웹/HC 미허용 시)
- * 걸음수는 프론트에서만 관리(DB 저장 안 함).
+ * 만보기 훅 — 폰 하드웨어 만보 센서(TYPE_STEP_COUNTER)를 expo-sensors Pedometer로 직접 사용.
+ *  - 삼성헬스/Health Connect 불필요(모든 폰의 OS 센서). 권한은 표준 "신체 활동(ACTIVITY_RECOGNITION)" 팝업.
+ *  - 센서 미지원/권한 거부 시 가속도계 폴백(포그라운드).
+ *  - 걸음수는 프론트에서만 관리(DB 저장 안 함). 앱 열려 있을 때 카운트(백그라운드 누적은 후속: 포그라운드 서비스).
  */
 import { useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
-import { Accelerometer } from 'expo-sensors';
-import * as SecureStore from 'expo-secure-store';
+import { Pedometer, Accelerometer } from 'expo-sensors';
 
 export type PedometerState = {
   available: boolean | null; // null = 확인 중
   todaySteps: number;
-  source?: 'health' | 'accel';
+  source?: 'pedometer' | 'accel';
   error?: string;
 };
-
-// 가속도계 걸음 감지 임계값(중력=1g 기준)
-const HIGH = 1.18;
-const LOW = 1.06;
-const MIN_STEP_MS = 280;
-
-// Health Connect 사용 여부 스위치.
-// ⚠️ react-native-health-connect는 MainActivity에 권한 런처(ActivityResultLauncher)를 등록해야 하는데
-//    현재 설정에선 등록이 안 돼 requestPermission 호출 시 네이티브 크래시(lateinit ... requestPermission)가 남.
-//    delegate 등록은 plugins/withHealthConnectDelegate.js(config 플러그인)로 MainActivity에 주입됨.
-const HEALTH_CONNECT_ENABLED = true;
-
-// Health Connect는 안드로이드 전용 — 웹/iOS 번들에서 로드 안 되게 가드 require.
-let HC: {
-  initialize: () => Promise<boolean>;
-  getSdkStatus?: () => Promise<number>;
-  requestPermission: (p: Array<{ accessType: string; recordType: string }>) => Promise<Array<{ recordType: string }>>;
-  aggregateRecord: (o: unknown) => Promise<{ COUNT_TOTAL?: number }>;
-} | null = null;
-if (Platform.OS === 'android') {
-  try {
-    HC = require('react-native-health-connect');
-  } catch {
-    HC = null;
-  }
-}
 
 const startOfToday = () => {
   const d = new Date();
@@ -48,23 +20,10 @@ const startOfToday = () => {
   return d;
 };
 
-// 가입(첫 실행) 시점 — 설치 전에 걸은 걸음은 크레딧하지 않기 위한 기준선.
-const ENROLL_KEY = 'naduri.stepsEnrolledAt';
-async function getEnrolledAt(): Promise<number> {
-  try {
-    const v = await SecureStore.getItemAsync(ENROLL_KEY);
-    if (v) return parseInt(v, 10) || 0;
-  } catch {
-    /* ignore */
-  }
-  const now = Date.now();
-  try {
-    await SecureStore.setItemAsync(ENROLL_KEY, String(now));
-  } catch {
-    /* ignore */
-  }
-  return now;
-}
+// 가속도계 걸음 감지 임계값(중력=1g 기준) — 폴백용
+const HIGH = 1.18;
+const LOW = 1.06;
+const MIN_STEP_MS = 280;
 
 type Setter = React.Dispatch<React.SetStateAction<PedometerState>>;
 
@@ -114,60 +73,41 @@ export function usePedometer(): PedometerState {
     let mounted = true;
 
     (async () => {
-      // 1) Health Connect (안드로이드)
-      if (HC && HEALTH_CONNECT_ENABLED) {
-        let note = '';
-        try {
-          let status: number | undefined;
-          try {
-            status = await HC.getSdkStatus?.();
-          } catch {
-            /* ignore */
-          }
-          const inited = await HC.initialize();
-          if (!inited) {
-            note = `HC 미가용 (sdkStatus=${status ?? '?'})`;
+      let note = '';
+      try {
+        // 표준 신체활동(ACTIVITY_RECOGNITION) 권한 팝업 — 앱 켤 때 뜸
+        const perm = await Pedometer.requestPermissionsAsync();
+        if (!mounted) return;
+        if (perm && perm.granted === false) {
+          note = '신체 활동 권한 거부';
+        } else {
+          const available = await Pedometer.isAvailableAsync();
+          if (!mounted) return;
+          if (!available) {
+            note = '만보 센서 미지원 기기';
           } else {
-            const granted = await HC.requestPermission([{ accessType: 'read', recordType: 'Steps' }]);
-            const ok = Array.isArray(granted) && granted.some((p) => p.recordType === 'Steps');
-            if (!ok) {
-              note = `걸음 권한 미허용 (granted=${Array.isArray(granted) ? granted.length : 'null'})`;
-            } else if (mounted) {
-              const enrolledAt = await getEnrolledAt();
-              const read = async () => {
-                try {
-                  // 설치 당일은 가입 시점부터, 이후엔 자정부터(둘 중 늦은 시각).
-                  const startMs = Math.max(startOfToday().getTime(), enrolledAt);
-                  const res = await HC!.aggregateRecord({
-                    recordType: 'Steps',
-                    timeRangeFilter: {
-                      operator: 'between',
-                      startTime: new Date(startMs).toISOString(),
-                      endTime: new Date().toISOString(),
-                    },
-                  });
-                  const total = res?.COUNT_TOTAL ?? 0;
-                  if (mounted) setState({ available: true, todaySteps: total, source: 'health' });
-                } catch {
-                  /* 일시 오류 — 이전 값 유지 */
-                }
-              };
-              await read();
-              const id = setInterval(read, 10000); // 포그라운드 중 주기적 갱신
-              cleanupRef.current = () => clearInterval(id);
-              return;
+            // iOS는 자정~현재 누적을 반환(지원), Android는 미지원이라 0에서 구독분 누적.
+            let baseline = 0;
+            try {
+              const r = await Pedometer.getStepCountAsync(startOfToday(), new Date());
+              if (r) baseline = r.steps;
+            } catch {
+              /* Android 미지원 */
             }
+            if (mounted) setState({ available: true, todaySteps: baseline, source: 'pedometer' });
+            // watchStepCount의 steps는 "구독 이후 누적" → 더하지 말고 baseline + 로 SET
+            const sub = Pedometer.watchStepCount((r) => {
+              if (mounted) setState((s) => ({ ...s, todaySteps: baseline + r.steps }));
+            });
+            cleanupRef.current = () => sub.remove();
+            return;
           }
-        } catch (e) {
-          note = `HC 예외: ${(e as { message?: string })?.message ?? e}`;
         }
-        // HC로 못 갔으면(미가용/권한거부/예외) 이유(note)와 함께 가속도계 폴백
-        cleanupRef.current = startAccelerometer(setState, () => mounted, note);
-        return;
+      } catch (e) {
+        note = `만보 예외: ${(e as { message?: string })?.message ?? e}`;
       }
-
-      // 2) 폴백: 가속도계 (HC 비활성/미탑재)
-      cleanupRef.current = startAccelerometer(setState, () => mounted);
+      // 폴백: 가속도계
+      cleanupRef.current = startAccelerometer(setState, () => mounted, note);
     })();
 
     return () => {
