@@ -44,8 +44,8 @@ export function OnboardingScreen({ navigation }: Props) {
       login({ name: user.nickname, provider: 'google' });
       navigation.replace('Main');
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : '로그인 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.';
-      notify('로그인 실패', msg);
+      const raw = e instanceof ApiError ? e.message : (e as { message?: string })?.message;
+      notify('로그인 실패', raw ? String(raw) : '로그인 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.');
     } finally {
       setBusy(null);
     }

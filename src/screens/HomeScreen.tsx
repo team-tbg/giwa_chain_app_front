@@ -33,9 +33,9 @@ export function HomeScreen({ navigation }: Props) {
   const loc = useLocation();
   const weather = useWeather(loc.coords);
 
-  // 걸음수는 프론트(센서)에서 관리 — 측정되면 앱 상태에 반영(DB 저장 안 함).
+  // 걸음수는 프론트(센서)에서 관리 — 센서가 잡히면 측정값을 그대로 반영(0부터라도). DB 저장 안 함.
   useEffect(() => {
-    if (ped.available && ped.todaySteps > 0) setSteps(ped.todaySteps);
+    if (ped.available === true) setSteps(ped.todaySteps);
   }, [ped.available, ped.todaySteps, setSteps]);
 
   // 위치 상태를 분명히 표시 — GPS로 잡힌 동네인지 폴백인지 구분되게

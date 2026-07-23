@@ -1,6 +1,7 @@
 /** 하단 6탭 (v10): 홈 / 혜택 / 이자받기 / 포인트샵 / 내 지갑 / 내정보 */
 import React from 'react';
 import { Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { HomeScreen } from '../screens/HomeScreen';
 import { BenefitScreen } from '../screens/BenefitScreen';
@@ -17,6 +18,7 @@ const icon = (emoji: string) => ({ color }: { color: string }) =>
   <Text style={{ fontSize: 19, color }}>{emoji}</Text>;
 
 export function MainTabs() {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -26,9 +28,10 @@ export function MainTabs() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.line,
-          height: 74,
+          // 시스템 내비게이션(제스처/3버튼) 위로 올라오도록 하단 인셋 반영
+          height: 60 + insets.bottom,
           paddingTop: 8,
-          paddingBottom: 14,
+          paddingBottom: insets.bottom + 8,
         },
         tabBarLabelStyle: { fontSize: 10.5, fontWeight: '700' },
       }}

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@react-native-google-signin/google-signin": "^16.1.2",
     "@react-navigation/bottom-tabs": "^7.18.13",
     "@react-navigation/native": "^7.3.13",
     "@react-navigation/native-stack": "^7.18.5",
@@ -10,6 +11,7 @@
     "expo-auth-session": "~57.0.4",
     "expo-constants": "~57.0.6",
     "expo-crypto": "~57.0.1",
+    "expo-dev-client": "~57.0.9",
     "expo-location": "~57.0.6",
     "expo-secure-store": "~57.0.1",
     "expo-sensors": "~57.0.2",

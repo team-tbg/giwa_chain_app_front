@@ -38,7 +38,8 @@
       "Bash(grep -E \"\\(^|/\\)\\\\.env$|node_modules\")",
       "Bash(awk '{print $1}')",
       "Bash(git ls-tree *)",
-      "Bash(git commit -q -m ' *)"
+      "Bash(git commit -q -m ' *)",
+      "Bash(keytool -list -v -keystore android/app/debug.keystore -alias androiddebugkey -storepass android -keypass android)"
     ]
   },
   "hooks": {
