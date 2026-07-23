@@ -41,6 +41,7 @@
       ],
       "@react-native-google-signin/google-signin",
       "react-native-health-connect",
+      "./plugins/withHealthConnectDelegate",
       [
         "expo-build-properties",
         {

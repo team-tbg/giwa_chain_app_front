@@ -24,8 +24,8 @@ const MIN_STEP_MS = 280;
 // Health Connect 사용 여부 스위치.
 // ⚠️ react-native-health-connect는 MainActivity에 권한 런처(ActivityResultLauncher)를 등록해야 하는데
 //    현재 설정에선 등록이 안 돼 requestPermission 호출 시 네이티브 크래시(lateinit ... requestPermission)가 남.
-//    delegate 등록(설정 플러그인)까지 붙인 뒤 true로 켠다. 그전까진 가속도계 폴백 사용.
-const HEALTH_CONNECT_ENABLED = false;
+//    delegate 등록은 plugins/withHealthConnectDelegate.js(config 플러그인)로 MainActivity에 주입됨.
+const HEALTH_CONNECT_ENABLED = true;
 
 // Health Connect는 안드로이드 전용 — 웹/iOS 번들에서 로드 안 되게 가드 require.
 let HC: {

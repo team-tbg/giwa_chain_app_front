@@ -42,7 +42,10 @@
       "Bash(keytool -list -v -keystore android/app/debug.keystore -alias androiddebugkey -storepass android -keypass android)",
       "PowerShell(\"�߰���:\")",
       "PowerShell(.\\\\gradlew.bat app:processDebugMainManifest -x lint -x test 2>&1)",
-      "Bash(grep -E \"\\(^|/\\)\\\\.env$|node_modules|^android/\")"
+      "Bash(grep -E \"\\(^|/\\)\\\\.env$|node_modules|^android/\")",
+      "PowerShell(Set-Location C:\\\\workspace\\\\giwa_chain_app_front; $f = Get-ChildItem android\\\\app\\\\src\\\\main\\\\java -Recurse -Filter MainActivity.kt | Select-Object -First 1; $f.FullName; \"======\"; Get-Content $f.FullName)",
+      "Bash(node --check plugins/withHealthConnectDelegate.js)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('app.json','utf8'\\)\\); console.log\\('app.json OK'\\)\")"
     ]
   },
   "hooks": {
