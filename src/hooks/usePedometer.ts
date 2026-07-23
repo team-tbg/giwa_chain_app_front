@@ -25,6 +25,8 @@ type ABPModule = {
   setupBackgroundUpdates: (c: { title?: string; contentTemplate: string }) => Promise<boolean>;
   getStepsCountAsync: (dateIso?: string) => Promise<number>;
   subscribeToChanges: (l: (e: { steps: number; timestamp: number }) => void) => { remove: () => void };
+  isBatteryOptimizationExcluded?: () => Promise<boolean>;
+  requestBatteryOptimizationExemption?: () => Promise<boolean>;
 };
 let ABP: ABPModule | null = null;
 if (Platform.OS === 'android') {
@@ -106,8 +108,11 @@ export function usePedometer(): PedometerState {
             try {
               await ABP.requestNotificationPermissions(); // 상시 알림용(거부돼도 포그라운드 카운트는 됨)
               await ABP.setupBackgroundUpdates({ title: '나드리', contentTemplate: '오늘 %d 걸음 걸었어요 👟' });
+              // 삼성 등에서 배터리 최적화가 서비스를 죽이면 백그라운드·알림 갱신이 멈춤 → 예외 요청
+              const excluded = (await ABP.isBatteryOptimizationExcluded?.()) ?? true;
+              if (!excluded) await ABP.requestBatteryOptimizationExemption?.();
             } catch {
-              /* 알림/백그라운드 설정 실패해도 조회는 시도 */
+              /* 알림/백그라운드/배터리 설정 실패해도 조회는 시도 */
             }
             const today = await ABP.getStepsCountAsync();
             if (mounted) setState({ available: true, todaySteps: today ?? 0, source: 'pedometer' });
