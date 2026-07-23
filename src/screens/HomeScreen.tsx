@@ -99,10 +99,19 @@ export function HomeScreen({ navigation }: Props) {
             <Text style={styles.statLab}>걸은 거리</Text>
           </View>
         </View>
-        {__DEV__ && !ped.available && (
-          <Pressable style={styles.devSteps} onPress={() => setSteps(steps + 137)}>
-            <Text style={styles.devStepsTxt}>🔧 (개발·웹) 걸음 +137 — 센서 없는 환경에서 동적 확인용</Text>
-          </Pressable>
+        {__DEV__ && (
+          <View style={styles.devSteps}>
+            <Text style={styles.devStepsTxt}>
+              🔧 걸음 소스: {ped.source === 'health' ? 'Health Connect (삼성헬스 등 OS 데이터)'
+                : ped.source === 'accel' ? '가속도계 폴백 (포그라운드만)'
+                : '확인 중…'}
+            </Text>
+            {!ped.available && (
+              <Pressable onPress={() => setSteps(steps + 137)} style={styles.devSimBtn}>
+                <Text style={styles.devSimTxt}>걸음 +137 시뮬 (센서 없는 환경)</Text>
+              </Pressable>
+            )}
+          </View>
         )}
       </View>
 
@@ -221,8 +230,10 @@ const styles = StyleSheet.create({
   statNum: { fontSize: 17, fontWeight: '900', color: colors.ink },
   statUnit: { fontSize: 12, fontWeight: '700', color: colors.muted },
   statLab: { fontSize: 11, fontWeight: '600', color: colors.muted, marginTop: 2 },
-  devSteps: { marginTop: 12, alignSelf: 'stretch', backgroundColor: colors.surface2, borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
-  devStepsTxt: { fontSize: 11.5, fontWeight: '700', color: colors.muted },
+  devSteps: { marginTop: 12, alignSelf: 'stretch', backgroundColor: colors.surface2, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, alignItems: 'center', gap: 6 },
+  devStepsTxt: { fontSize: 11.5, fontWeight: '700', color: colors.muted, textAlign: 'center' },
+  devSimBtn: { backgroundColor: colors.line, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
+  devSimTxt: { fontSize: 11, fontWeight: '700', color: colors.ink },
 
   claim: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10,
