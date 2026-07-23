@@ -47,7 +47,9 @@
 - 적립 화폐 명칭은 **"포인트(P)"** (v10). 어려운 크립토 절차 용어(가스·시드·스왑·네트워크)는 UI 전면 노출 금지. 비트코인·금·지갑주소는 맥락에서 노출 허용.
 
 ## 기술
-- FE: React Native + Expo(SDK 57), TypeScript. 네비: React Navigation. 만보기: expo-sensors. 링/그래픽: react-native-svg.
+- FE: React Native + Expo(SDK 57), TypeScript. 네비: React Navigation. 링/그래픽: react-native-svg. 위치·날씨: expo-location + Open-Meteo.
+- 걸음수: Android Health Connect(`react-native-health-connect`, 백그라운드 포함) → 가속도계(expo-sensors) 폴백. 프론트 관리·DB 미저장.
+- 로그인: 네이티브 `@react-native-google-signin`, 웹 expo-auth-session. (카카오=가상자산 제한, 토스=심사로 제외. 구글만.)
 - 테마: 라이트 · 핀테크 블루 (v10 팔레트: blue `#2F6BF3`, grow `#12B76A`, gold `#FDB022`, 앱 배경 `#F5F7FB`). 토큰은 `src/theme/theme.ts`.
 - 변경 후 `npx tsc --noEmit` 로 타입 확인.
 
