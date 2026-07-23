@@ -45,7 +45,10 @@
       "Bash(grep -E \"\\(^|/\\)\\\\.env$|node_modules|^android/\")",
       "PowerShell(Set-Location C:\\\\workspace\\\\giwa_chain_app_front; $f = Get-ChildItem android\\\\app\\\\src\\\\main\\\\java -Recurse -Filter MainActivity.kt | Select-Object -First 1; $f.FullName; \"======\"; Get-Content $f.FullName)",
       "Bash(node --check plugins/withHealthConnectDelegate.js)",
-      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('app.json','utf8'\\)\\); console.log\\('app.json OK'\\)\")"
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('app.json','utf8'\\)\\); console.log\\('app.json OK'\\)\")",
+      "Bash(node -e \"const p=require\\('./node_modules/react-native-health-connect/package.json'\\); console.log\\('main:',p.main,'| version:',p.version\\)\")",
+      "Bash(xargs grep -l \"withAndroidManifest\\\\|uses-permission\\\\|health.READ\\\\|PermissionsRationale\\\\|activity-alias\\\\|expo\")",
+      "Bash(node -e \"const x=require\\('fs'\\).readFileSync\\('android/app/src/main/AndroidManifest.xml','utf8'\\); const i=x.indexOf\\('ACTION_SHOW_PERMISSIONS_RATIONALE'\\); console.log\\(x.slice\\(i-120,i+90\\)\\)\")"
     ]
   },
   "hooks": {

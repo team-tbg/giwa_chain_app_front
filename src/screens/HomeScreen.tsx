@@ -106,6 +106,7 @@ export function HomeScreen({ navigation }: Props) {
                 : ped.source === 'accel' ? '가속도계 폴백 (포그라운드만)'
                 : '확인 중…'}
             </Text>
+            {!!ped.error && <Text style={styles.devStepsTxt}>ⓘ {ped.error}</Text>}
             {!ped.available && (
               <Pressable onPress={() => setSteps(steps + 137)} style={styles.devSimBtn}>
                 <Text style={styles.devSimTxt}>걸음 +137 시뮬 (센서 없는 환경)</Text>

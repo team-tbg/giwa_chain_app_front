@@ -30,6 +30,7 @@ const HEALTH_CONNECT_ENABLED = true;
 // Health Connect는 안드로이드 전용 — 웹/iOS 번들에서 로드 안 되게 가드 require.
 let HC: {
   initialize: () => Promise<boolean>;
+  getSdkStatus?: () => Promise<number>;
   requestPermission: (p: Array<{ accessType: string; recordType: string }>) => Promise<Array<{ recordType: string }>>;
   aggregateRecord: (o: unknown) => Promise<{ COUNT_TOTAL?: number }>;
 } | null = null;
@@ -68,7 +69,7 @@ async function getEnrolledAt(): Promise<number> {
 type Setter = React.Dispatch<React.SetStateAction<PedometerState>>;
 
 /** 폴백: 가속도계 실시간 걸음 감지. cleanup 반환. */
-function startAccelerometer(setState: Setter, isMounted: () => boolean): () => void {
+function startAccelerometer(setState: Setter, isMounted: () => boolean, note?: string): () => void {
   let sub: { remove: () => void } | null = null;
   let steps = 0;
   let armed = true;
@@ -82,10 +83,10 @@ function startAccelerometer(setState: Setter, isMounted: () => boolean): () => v
     }
     if (!isMounted()) return;
     if (!available) {
-      setState({ available: false, todaySteps: 0 });
+      setState({ available: false, todaySteps: 0, error: note });
       return;
     }
-    setState({ available: true, todaySteps: 0, source: 'accel' });
+    setState({ available: true, todaySteps: 0, source: 'accel', error: note });
     Accelerometer.setUpdateInterval(80);
     sub = Accelerometer.addListener(({ x, y, z }) => {
       const mag = Math.sqrt(x * x + y * y + z * z);
@@ -113,14 +114,25 @@ export function usePedometer(): PedometerState {
     let mounted = true;
 
     (async () => {
-      // 1) Health Connect (안드로이드) — delegate 등록 전까진 비활성(크래시 방지)
+      // 1) Health Connect (안드로이드)
       if (HC && HEALTH_CONNECT_ENABLED) {
+        let note = '';
         try {
+          let status: number | undefined;
+          try {
+            status = await HC.getSdkStatus?.();
+          } catch {
+            /* ignore */
+          }
           const inited = await HC.initialize();
-          if (inited) {
+          if (!inited) {
+            note = `HC 미가용 (sdkStatus=${status ?? '?'})`;
+          } else {
             const granted = await HC.requestPermission([{ accessType: 'read', recordType: 'Steps' }]);
             const ok = Array.isArray(granted) && granted.some((p) => p.recordType === 'Steps');
-            if (ok && mounted) {
+            if (!ok) {
+              note = `걸음 권한 미허용 (granted=${Array.isArray(granted) ? granted.length : 'null'})`;
+            } else if (mounted) {
               const enrolledAt = await getEnrolledAt();
               const read = async () => {
                 try {
@@ -146,12 +158,15 @@ export function usePedometer(): PedometerState {
               return;
             }
           }
-        } catch {
-          /* HC 실패 → 가속도계로 폴백 */
+        } catch (e) {
+          note = `HC 예외: ${(e as { message?: string })?.message ?? e}`;
         }
+        // HC로 못 갔으면(미가용/권한거부/예외) 이유(note)와 함께 가속도계 폴백
+        cleanupRef.current = startAccelerometer(setState, () => mounted, note);
+        return;
       }
 
-      // 2) 폴백: 가속도계
+      // 2) 폴백: 가속도계 (HC 비활성/미탑재)
       cleanupRef.current = startAccelerometer(setState, () => mounted);
     })();
 
