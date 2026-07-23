@@ -1,10 +1,13 @@
 /**
- * 만보기 훅 — 폰 하드웨어 만보 센서(TYPE_STEP_COUNTER)를 expo-sensors Pedometer로 직접 사용.
- *  - 삼성헬스/Health Connect 불필요(모든 폰의 OS 센서). 권한은 표준 "신체 활동(ACTIVITY_RECOGNITION)" 팝업.
- *  - 센서 미지원/권한 거부 시 가속도계 폴백(포그라운드).
- *  - 걸음수는 프론트에서만 관리(DB 저장 안 함). 앱 열려 있을 때 카운트(백그라운드 누적은 후속: 포그라운드 서비스).
+ * 만보기 훅 — 걸음수 소스 우선순위:
+ *  1) Android: expo-android-pedometer = 하드웨어 만보 센서(TYPE_STEP_COUNTER) + 포그라운드 서비스 + 상시 알림
+ *     → 앱이 닫혀 있어도 오늘 걸음 누적(캐시워크 방식). 삼성헬스/Health Connect 불필요.
+ *  2) iOS: expo-sensors Pedometer(CMPedometer) — 오늘 누적 히스토리 제공
+ *  3) 폴백: 가속도계(웹/미지원) — 포그라운드만
+ * 걸음수는 프론트에서만 관리(DB 저장 안 함).
  */
 import { useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { Pedometer, Accelerometer } from 'expo-sensors';
 
 export type PedometerState = {
@@ -14,20 +17,37 @@ export type PedometerState = {
   error?: string;
 };
 
+// Android 백그라운드 만보기 — 웹/iOS 번들에서 로드 안 되게 가드 require.
+type ABPModule = {
+  isSensorAvailable?: () => Promise<boolean>;
+  requestActivityPermissions: () => Promise<{ granted: boolean }>;
+  requestNotificationPermissions: () => Promise<{ granted: boolean }>;
+  setupBackgroundUpdates: (c: { title?: string; contentTemplate: string }) => Promise<boolean>;
+  getStepsCountAsync: (dateIso?: string) => Promise<number>;
+  subscribeToChanges: (l: (e: { steps: number; timestamp: number }) => void) => { remove: () => void };
+};
+let ABP: ABPModule | null = null;
+if (Platform.OS === 'android') {
+  try {
+    ABP = require('expo-android-pedometer');
+  } catch {
+    ABP = null;
+  }
+}
+
 const startOfToday = () => {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
 };
 
-// 가속도계 걸음 감지 임계값(중력=1g 기준) — 폴백용
+// 가속도계(폴백) 임계값
 const HIGH = 1.18;
 const LOW = 1.06;
 const MIN_STEP_MS = 280;
 
 type Setter = React.Dispatch<React.SetStateAction<PedometerState>>;
 
-/** 폴백: 가속도계 실시간 걸음 감지. cleanup 반환. */
 function startAccelerometer(setState: Setter, isMounted: () => boolean, note?: string): () => void {
   let sub: { remove: () => void } | null = null;
   let steps = 0;
@@ -74,39 +94,73 @@ export function usePedometer(): PedometerState {
 
     (async () => {
       let note = '';
-      try {
-        // 표준 신체활동(ACTIVITY_RECOGNITION) 권한 팝업 — 앱 켤 때 뜸
-        const perm = await Pedometer.requestPermissionsAsync();
-        if (!mounted) return;
-        if (perm && perm.granted === false) {
-          note = '신체 활동 권한 거부';
-        } else {
-          const available = await Pedometer.isAvailableAsync();
+
+      // 1) Android — 백그라운드 만보기(포그라운드 서비스 + 상시 알림)
+      if (ABP) {
+        try {
+          const perm = await ABP.requestActivityPermissions(); // 표준 "신체 활동" 팝업
           if (!mounted) return;
-          if (!available) {
-            note = '만보 센서 미지원 기기';
+          if (!perm?.granted) {
+            note = '신체 활동 권한 거부';
           } else {
-            // iOS는 자정~현재 누적을 반환(지원), Android는 미지원이라 0에서 구독분 누적.
-            let baseline = 0;
             try {
-              const r = await Pedometer.getStepCountAsync(startOfToday(), new Date());
-              if (r) baseline = r.steps;
+              await ABP.requestNotificationPermissions(); // 상시 알림용(거부돼도 포그라운드 카운트는 됨)
+              await ABP.setupBackgroundUpdates({ title: '나드리', contentTemplate: '오늘 %d 걸음 걸었어요 👟' });
             } catch {
-              /* Android 미지원 */
+              /* 알림/백그라운드 설정 실패해도 조회는 시도 */
             }
-            if (mounted) setState({ available: true, todaySteps: baseline, source: 'pedometer' });
-            // watchStepCount의 steps는 "구독 이후 누적" → 더하지 말고 baseline + 로 SET
-            const sub = Pedometer.watchStepCount((r) => {
-              if (mounted) setState((s) => ({ ...s, todaySteps: baseline + r.steps }));
+            const today = await ABP.getStepsCountAsync();
+            if (mounted) setState({ available: true, todaySteps: today ?? 0, source: 'pedometer' });
+            const sub = ABP.subscribeToChanges((e) => {
+              if (mounted) setState((s) => ({ ...s, todaySteps: e.steps }));
             });
-            cleanupRef.current = () => sub.remove();
+            cleanupRef.current = () => {
+              try {
+                sub.remove();
+              } catch {
+                /* noop */
+              }
+            };
             return;
           }
+        } catch (e) {
+          note = `만보 예외: ${(e as { message?: string })?.message ?? e}`;
         }
-      } catch (e) {
-        note = `만보 예외: ${(e as { message?: string })?.message ?? e}`;
+        cleanupRef.current = startAccelerometer(setState, () => mounted, note);
+        return;
       }
-      // 폴백: 가속도계
+
+      // 2) iOS — expo-sensors Pedometer(CMPedometer)
+      if (Platform.OS === 'ios') {
+        try {
+          const perm = await Pedometer.requestPermissionsAsync();
+          if (!mounted) return;
+          if (perm?.granted !== false) {
+            const available = await Pedometer.isAvailableAsync();
+            if (available) {
+              let baseline = 0;
+              try {
+                const r = await Pedometer.getStepCountAsync(startOfToday(), new Date());
+                if (r) baseline = r.steps;
+              } catch {
+                /* ignore */
+              }
+              if (mounted) setState({ available: true, todaySteps: baseline, source: 'pedometer' });
+              const sub = Pedometer.watchStepCount((r) => {
+                if (mounted) setState((s) => ({ ...s, todaySteps: baseline + r.steps }));
+              });
+              cleanupRef.current = () => sub.remove();
+              return;
+            }
+          } else {
+            note = '동작 권한 거부';
+          }
+        } catch (e) {
+          note = `만보 예외: ${(e as { message?: string })?.message ?? e}`;
+        }
+      }
+
+      // 3) 폴백: 가속도계 (웹/미지원)
       cleanupRef.current = startAccelerometer(setState, () => mounted, note);
     })();
 

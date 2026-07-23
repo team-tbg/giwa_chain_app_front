@@ -48,7 +48,8 @@
             "minSdkVersion": 26
           }
         }
-      ]
+      ],
+      "expo-android-pedometer"
     ],
     "extra": {
       "apiBaseUrl": "https://api.stg.naduri.app/v1",
