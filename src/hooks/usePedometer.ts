@@ -120,14 +120,26 @@ export function usePedometer(): PedometerState {
             const today = await ABP.getStepsCountAsync();
             if (mounted) setState({ available: true, todaySteps: today ?? 0, source: 'pedometer' });
             const sub = ABP.subscribeToChanges((e) => {
-              if (mounted) setState((s) => ({ ...s, todaySteps: e.steps }));
+              if (mounted) setState((s) => (e.steps === s.todaySteps ? s : { ...s, todaySteps: e.steps }));
             });
+            // 백업: 구독 이벤트가 끊겨도(삼성 스로틀 등) 4초마다 오늘 걸음 재조회 → 멈춤 방지.
+            const poll = setInterval(async () => {
+              try {
+                const n = await ABP!.getStepsCountAsync();
+                if (mounted && typeof n === 'number') {
+                  setState((s) => (n === s.todaySteps ? s : { ...s, todaySteps: n }));
+                }
+              } catch {
+                /* 조회 실패는 무시 */
+              }
+            }, 4000);
             cleanupRef.current = () => {
               try {
                 sub.remove();
               } catch {
                 /* noop */
               }
+              clearInterval(poll);
             };
             return;
           }
@@ -178,11 +190,18 @@ export function usePedometer(): PedometerState {
     };
   }, []);
 
-  // 사용자가 상시 알림을 지워도, 앱에 다시 들어오면 재표시(서비스는 계속 돎).
+  // 앱에 다시 들어오면: 상시 알림 재표시 + 오늘 걸음 재조회(백그라운드에서 쌓인 값 동기화).
   useEffect(() => {
     if (!ABP) return;
-    const sub = RNAppState.addEventListener('change', (st) => {
-      if (st === 'active') ABP?.setupBackgroundUpdates(NOTIF).catch(() => {});
+    const sub = RNAppState.addEventListener('change', async (st) => {
+      if (st !== 'active') return;
+      ABP?.setupBackgroundUpdates(NOTIF).catch(() => {});
+      try {
+        const n = await ABP!.getStepsCountAsync();
+        if (typeof n === 'number') setState((s) => (n === s.todaySteps ? s : { ...s, todaySteps: n }));
+      } catch {
+        /* 무시 */
+      }
     });
     return () => sub.remove();
   }, []);
