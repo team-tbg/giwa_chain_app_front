@@ -159,47 +159,64 @@ export function usePedometer(): PedometerState {
             } catch {
               /* 알림/백그라운드/배터리 설정 실패해도 조회는 시도 */
             }
-            // ABP(백그라운드 누적) + expo-sensors(포그라운드 실시간) 결합.
-            // ABP 서비스가 멈춰도(삼성) 앱 열려 있는 동안엔 expo-sensors 델타로 걸음이 실시간 증가.
+            // ABP(백그라운드 누적) + 가속도계(포그라운드 실시간) 결합.
+            // 이 기기는 하드웨어 만보 센서가 멈춰 있어(ABP·expo-sensors 모두 값 고정) →
+            // 앱 열려 있는 동안엔 우리가 제어하는 가속도계 걸음 감지로 확실히 실시간 증가.
             let abpSteps = (await ABP.getStepsCountAsync()) ?? 0;
-            let expoBase = abpSteps; // 라이브 델타 기준점
-            let expoDelta = 0;
+            let base = abpSteps; // 실시간 델타 기준
+            let live = 0; // 가속도계로 감지한 포그라운드 걸음
             const push = () => {
-              const v = Math.max(abpSteps, expoBase + expoDelta);
+              const v = Math.max(abpSteps, base + live);
               if (mounted) setState((s) => (v === s.todaySteps ? s : { ...s, todaySteps: v, source: 'pedometer' }));
             };
             if (mounted) setState({ available: true, todaySteps: abpSteps, source: 'pedometer' });
 
-            const sub = ABP.subscribeToChanges((e) => {
-              if (typeof e.steps === 'number') {
-                abpSteps = e.steps;
-                push();
+            // ABP값 동기화(백그라운드에서 쌓였으면 기준을 올림).
+            const syncAbp = (n: number) => {
+              abpSteps = n;
+              if (abpSteps > base + live) {
+                base = abpSteps;
+                live = 0;
               }
+              push();
+            };
+            const sub = ABP.subscribeToChanges((e) => {
+              if (typeof e.steps === 'number') syncAbp(e.steps);
             });
             // 백업 폴링: 구독이 끊겨도 4초마다 ABP 재조회.
             const poll = setInterval(async () => {
               try {
                 const n = await ABP!.getStepsCountAsync();
-                if (typeof n === 'number') {
-                  abpSteps = n;
-                  push();
-                }
+                if (typeof n === 'number') syncAbp(n);
               } catch {
                 /* 조회 실패는 무시 */
               }
             }, 4000);
-            // 라이브 포그라운드 카운트(expo-sensors watchStepCount) — ABP가 멈춰도 앱 열려 있으면 실시간 증가.
-            let expoSub: { remove: () => void } | null = null;
+
+            // 가속도계 실시간 걸음 감지(피크) — 하드웨어 센서가 멈춰도 걷는 동안 무조건 올라감.
+            let armed = true;
+            let lastStepAt = 0;
+            let accSub: { remove: () => void } | null = null;
             try {
-              if (await Pedometer.isAvailableAsync()) {
-                expoBase = abpSteps;
-                expoSub = Pedometer.watchStepCount((r) => {
-                  expoDelta = r.steps;
-                  push();
+              if (await Accelerometer.isAvailableAsync()) {
+                Accelerometer.setUpdateInterval(80);
+                accSub = Accelerometer.addListener(({ x, y, z }) => {
+                  const mag = Math.sqrt(x * x + y * y + z * z);
+                  const now = Date.now();
+                  if (armed && mag > HIGH) {
+                    armed = false;
+                    if (now - lastStepAt > MIN_STEP_MS) {
+                      live += 1;
+                      lastStepAt = now;
+                      push();
+                    }
+                  } else if (!armed && mag < LOW) {
+                    armed = true;
+                  }
                 });
               }
             } catch {
-              /* expo-sensors 미지원이면 ABP만 사용 */
+              /* 가속도계 미지원이면 ABP만 사용 */
             }
 
             cleanupRef.current = () => {
@@ -210,7 +227,7 @@ export function usePedometer(): PedometerState {
               }
               clearInterval(poll);
               try {
-                expoSub?.remove();
+                accSub?.remove();
               } catch {
                 /* noop */
               }
