@@ -6,6 +6,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Screen } from '../../components/Screen';
 import { Button } from '../../components/ui';
+import { toast } from '../../lib/alert';
 import { colors, radii, cardShadow, typography } from '../../theme/theme';
 import { useAppState, fmtP, pickBonus, BONUS_COOLDOWN_MS } from '../../state/AppState';
 import type { RootStackParamList } from '../../navigation/types';
@@ -21,7 +22,7 @@ const hhmmss = (ms: number) => {
 };
 
 export function BonusScreen({ navigation }: Props) {
-  const { lastBonusAt, claimBonus } = useAppState();
+  const { points, lastBonusAt, claimBonus } = useAppState();
   const [now, setNow] = useState(Date.now());
   const [reveal, setReveal] = useState<number | null>(null);
 
@@ -38,6 +39,7 @@ export function BonusScreen({ navigation }: Props) {
     const amount = pickBonus();
     claimBonus(amount);
     setReveal(amount);
+    toast(`보너스 +${fmtP(amount)}P 받았어요`);
   };
 
   return (
@@ -45,6 +47,11 @@ export function BonusScreen({ navigation }: Props) {
       <Button label="← 뒤로" variant="plain" onPress={() => navigation.goBack()} style={styles.back} />
       <Text style={styles.h1}>오늘의 보너스</Text>
       <Text style={styles.sub}>6시간마다 한 번, 최대 300P를 받아요</Text>
+
+      <View style={styles.balRow}>
+        <Text style={styles.balLab}>현재 보유 포인트</Text>
+        <Text style={styles.balVal}>{fmtP(points)}P</Text>
+      </View>
 
       <View style={[styles.box, reveal != null && styles.boxWin]}>
         {reveal != null ? (
@@ -83,7 +90,13 @@ export function BonusScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   back: { alignSelf: 'flex-start', height: 40, paddingHorizontal: 14, marginBottom: 4 },
   h1: { ...typography.display, color: colors.ink },
-  sub: { ...typography.body, color: colors.muted, marginTop: 6, marginBottom: 18 },
+  sub: { ...typography.body, color: colors.muted, marginTop: 6, marginBottom: 14 },
+  balRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.surface, borderRadius: radii.md, paddingVertical: 12, paddingHorizontal: 16, marginBottom: 16, ...cardShadow,
+  },
+  balLab: { fontSize: 13, fontWeight: '700', color: colors.muted },
+  balVal: { fontSize: 18, fontWeight: '900', color: colors.ink, letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
   box: { backgroundColor: colors.surface, borderRadius: radii.lg, paddingVertical: 40, alignItems: 'center', ...cardShadow },
   boxWin: { backgroundColor: colors.goldSoft },
   emoji: { fontSize: 52 },
