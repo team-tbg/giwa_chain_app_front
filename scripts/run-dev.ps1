@@ -1,51 +1,55 @@
 <#
-  나드리 로컬 개발 원클릭 실행 (Windows PowerShell)
-  - 백엔드(naduri-backend)를 새 창에서 uvicorn 으로 실행
-  - USB 실기기용 adb reverse (백엔드 8000 · Metro 8081) 설정
-  - 프론트(Expo)를 이 창에서 실행
+  Naduri local dev one-shot runner (Windows PowerShell)
+    - starts backend (naduri-backend) in a new window via uvicorn
+    - sets adb reverse for USB device (backend 8000, Metro 8081)
+    - runs the frontend (Expo) in this window
 
-  위치: giwa_chain_app_front/scripts/run-dev.ps1
+  Location: giwa_chain_app_front/scripts/run-dev.ps1
 
-  사용법(프론트 레포 루트에서):
-    ./scripts/run-dev.ps1                 # 백엔드 + 프론트 빌드/설치/실행(expo run:android)
-    ./scripts/run-dev.ps1 -Start          # 이미 설치돼 있으면 Metro만(npm start, 빠름)
-    ./scripts/run-dev.ps1 -NoBackend      # 백엔드는 이미 떠 있고 프론트만
-    ./scripts/run-dev.ps1 -Py 3.12.13     # uv 파이썬 버전 지정(기본 3.12.12)
-    ./scripts/run-dev.ps1 -Port 8000      # 백엔드 포트(기본 8000)
+  Usage (from the frontend repo root):
+    ./scripts/run-dev.ps1                 # backend + frontend build/install/run (expo run:android)
+    ./scripts/run-dev.ps1 -Start          # Metro only (npm start) if the app is already installed
+    ./scripts/run-dev.ps1 -NoBackend      # frontend only (backend already up)
+    ./scripts/run-dev.ps1 -Py 3.12.13     # uv python version (default 3.12.12)
+    ./scripts/run-dev.ps1 -Port 8000      # backend port (default 8000)
+
+  NOTE: messages are ASCII on purpose. Windows PowerShell 5.1 reads .ps1 as the
+  system codepage (CP949 on KR Windows) unless the file has a UTF-8 BOM, which
+  garbles non-ASCII literals in the console. Keep console output ASCII.
 #>
 [CmdletBinding()]
 param(
-  [switch]$Start,        # 프론트를 npm start(Metro만)로. 미지정 시 npm run android(빌드+설치)
-  [switch]$NoBackend,    # 백엔드 실행 생략
+  [switch]$Start,        # frontend via npm start (Metro only). Default: npm run android (build+install)
+  [switch]$NoBackend,    # skip backend
   [string]$Py = "3.12.12",
   [int]$Port = 8000,
   [string]$BackendDir
 )
 
 $ErrorActionPreference = "Stop"
-# 이 스크립트는 <front>/scripts 에 있다 → 프론트 루트는 상위, 백엔드는 그 형제 폴더.
+# This script lives in <front>/scripts -> front root is the parent, backend is its sibling.
 $FrontDir = Split-Path $PSScriptRoot -Parent
 if (-not $BackendDir) {
   $BackendDir = Join-Path (Split-Path $FrontDir -Parent) "naduri-backend"
 }
 
-function Info($m)  { Write-Host "[dev] $m" -ForegroundColor Cyan }
-function Warn($m)  { Write-Host "[dev] $m" -ForegroundColor Yellow }
+function Info($m) { Write-Host "[dev] $m" -ForegroundColor Cyan }
+function Warn($m) { Write-Host "[dev] $m" -ForegroundColor Yellow }
 
-# ── 1) 백엔드 (새 창) ────────────────────────────────────────────────
+# -- 1) backend (new window) -----------------------------------------
 if (-not $NoBackend) {
   if (-not (Test-Path $BackendDir)) {
-    Warn "백엔드 폴더를 못 찾음: $BackendDir  → -BackendDir 로 지정하거나 -NoBackend 사용"
+    Warn "backend folder not found: $BackendDir  -> pass -BackendDir or use -NoBackend"
   } else {
     if (-not (Test-Path (Join-Path $BackendDir ".env"))) {
-      Warn "$BackendDir\.env 가 없어요. .env.example 을 복사해 채워주세요(백엔드가 안 뜰 수 있음)."
+      Warn "$BackendDir\.env missing. Copy .env.example and fill it (backend may fail to start)."
     }
-    Info "백엔드 실행(새 창): 127.0.0.1:$Port  (python $Py)"
+    Info "starting backend (new window): 127.0.0.1:$Port  (python $Py)"
     $backendCmd = "Set-Location '$BackendDir'; Write-Host '=== naduri-backend :$Port ===' -ForegroundColor Green; uv run --python $Py uvicorn app.main:app --host 127.0.0.1 --port $Port"
     Start-Process powershell -ArgumentList '-NoExit', '-Command', $backendCmd | Out-Null
 
-    # health 대기(최대 ~40초)
-    Info "백엔드 health 대기 중..."
+    # wait for health (up to ~40s)
+    Info "waiting for backend health..."
     $ok = $false
     for ($i = 0; $i -lt 40; $i++) {
       try {
@@ -53,41 +57,41 @@ if (-not $NoBackend) {
         if ($r.StatusCode -eq 200) { $ok = $true; break }
       } catch { Start-Sleep -Seconds 1 }
     }
-    if ($ok) { Info "백엔드 OK (http://127.0.0.1:$Port/health)" }
-    else { Warn "백엔드 health 응답 없음 — 새 창 로그를 확인하세요(계속 진행)." }
+    if ($ok) { Info "backend OK (http://127.0.0.1:$Port/health)" }
+    else { Warn "no backend health response - check the new window's log (continuing)." }
   }
 }
 
-# ── 2) adb reverse (USB 실기기: 폰 localhost → PC) ───────────────────
+# -- 2) adb reverse (USB device: phone localhost -> PC) ---------------
 $adb = Get-Command adb -ErrorAction SilentlyContinue
 if ($adb) {
   $devices = (& adb devices | Select-String "device$")
   if ($devices) {
     & adb reverse tcp:$Port tcp:$Port | Out-Null
     & adb reverse tcp:8081 tcp:8081 | Out-Null
-    Info "adb reverse 설정: tcp:$Port(백엔드) · tcp:8081(Metro)"
+    Info "adb reverse set: tcp:$Port (backend), tcp:8081 (Metro)"
   } else {
-    Warn "연결된 안드로이드 기기가 없어요(adb). 에뮬레이터면 무시 가능."
+    Warn "no connected android device (adb). Fine if you use an emulator."
   }
 } else {
-  Warn "adb 를 PATH 에서 못 찾음 — 실기기 USB 포워딩은 수동으로: adb reverse tcp:$Port tcp:$Port"
+  Warn "adb not on PATH - set USB forwarding manually: adb reverse tcp:$Port tcp:$Port"
 }
 
-# ── 3) .env 점검(경고만) ────────────────────────────────────────────
+# -- 3) .env check (warn only) ---------------------------------------
 $envFile = Join-Path $FrontDir ".env"
 if (Test-Path $envFile) {
   $base = Select-String -Path $envFile -Pattern "EXPO_PUBLIC_API_BASE_URL=(.*)" -ErrorAction SilentlyContinue
-  if ($base) { Info "프론트 API base: $($base.Matches[0].Groups[1].Value.Trim())" }
+  if ($base) { Info "frontend API base: $($base.Matches[0].Groups[1].Value.Trim())" }
 } else {
-  Warn "$envFile 없음 — .env.example 복사 후 EXPO_PUBLIC_API_BASE_URL 설정 필요."
+  Warn "$envFile missing - copy .env.example and set EXPO_PUBLIC_API_BASE_URL."
 }
 
-# ── 4) 프론트 (이 창) ───────────────────────────────────────────────
+# -- 4) frontend (this window) ---------------------------------------
 Set-Location $FrontDir
 if ($Start) {
-  Info "프론트: npm start (Metro만)"
+  Info "frontend: npm start (Metro only)"
   npm start
 } else {
-  Info "프론트: npm run android (빌드+설치+실행)"
+  Info "frontend: npm run android (build+install+run)"
   npm run android
 }
