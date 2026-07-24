@@ -11,6 +11,7 @@ import { Screen } from '../components/Screen';
 import { Button, QMark } from '../components/ui';
 import { WithdrawSheet } from '../components/WithdrawSheet';
 import { TIP_STAKE } from '../lib/tips';
+import { groupDigits, onlyDigits } from '../lib/format';
 import { colors, cardShadow } from '../theme/theme';
 import { useAppState, won, fmtP, fmtd, pTotal, cTotal, earnedP, earnedC } from '../state/AppState';
 import type { RootStackParamList } from '../navigation/types';
@@ -64,20 +65,19 @@ export function GrowScreen({ navigation }: Props) {
   const [stakeInput, setStakeInput] = useState('');
   const stakeMax = stakeKind === 'p' ? points : cash;
   const stakeUnit = stakeKind === 'p' ? 'P' : '원';
-  // 입력 즉시 검증 — 잔고보다 많이 넣으려 하면 바로 표시하고 버튼을 막는다.
-  const stakeVal = stakeKind === 'c' ? Math.floor(Number(stakeInput) || 0) : Number(stakeInput) || 0;
-  const stakeOver = stakeVal > stakeMax + 1e-6; // 잔고 초과
+  // 입력 즉시 검증 — 잔고보다 많이 넣으려 하면 바로 표시하고 버튼을 막는다. (정수 단위)
+  const stakeVal = Math.floor(Number(stakeInput) || 0);
+  const stakeOver = stakeVal > Math.floor(stakeMax); // 잔고 초과
   const stakeEmpty = stakeVal <= 0;
 
   const openStake = (kind: 'p' | 'c') => {
     const max = kind === 'p' ? points : cash;
     if (max <= 0) return; // 버튼이 비활성이라 사실상 도달 안 함
-    // 기본값 = 넣을 수 있는 최대. 포인트는 소수까지, 원화는 원 단위로.
-    setStakeInput(kind === 'p' ? String(+max.toFixed(4)) : String(Math.floor(max)));
+    setStakeInput(String(Math.floor(max))); // 기본값 = 넣을 수 있는 최대(정수)
     setStakeKind(kind);
   };
 
-  const doStake = () => {
+  const doStake = async () => {
     if (!stakeKind) return;
     const max = stakeKind === 'p' ? points : cash;
     let v = Number(stakeInput) || 0;
@@ -85,10 +85,14 @@ export function GrowScreen({ navigation }: Props) {
     if (v <= 0) return toast('넣을 금액을 입력해주세요');
     if (v > max + 1e-6) return toast('가진 금액보다 많아요');
     v = Math.min(v, max);
-    if (stakeKind === 'p') stakePoints(v);
-    else stakeCash(v);
-    setStakeKind(null);
-    toast(`${stakeKind === 'p' ? fmtd(v, 0) + 'P' : won(v) + '원'}을 저금했어요`);
+    try {
+      if (stakeKind === 'p') await stakePoints(v); // 온라인=서버(온체인 볼트) / 오프라인=로컬
+      else stakeCash(v);
+      setStakeKind(null);
+      toast(`${stakeKind === 'p' ? fmtd(v, 0) + 'P' : won(v) + '원'}을 저금했어요`);
+    } catch (e) {
+      toast((e as { message?: string })?.message ?? '지금은 저금할 수 없어요');
+    }
   };
 
   const [wOpen, setWOpen] = useState(false);
@@ -126,7 +130,7 @@ export function GrowScreen({ navigation }: Props) {
             <View style={styles.gline}><Text style={styles.glineL}>오늘 받은 이자</Text><Text style={styles.glineR}>+{fmtd(pEarnNow, 4)}P</Text></View>
             <View style={styles.gbtns}>
               <GBtn label="추가 저금하기" onPress={() => openStake('p')} disabled={points <= 0} />
-              <GBtn label="이자 그만 받기" solid solidColor={colors.rewardDeep} onPress={unstakePoints} />
+              <GBtn label="이자 그만 받기" solid solidColor={colors.rewardDeep} onPress={() => { void unstakePoints().catch((e) => toast((e as { message?: string })?.message ?? '지금은 처리할 수 없어요')); }} />
             </View>
           </>
         ) : (
@@ -189,16 +193,16 @@ export function GrowScreen({ navigation }: Props) {
           <Text style={styles.sheetSub}>넣은 만큼 매 순간 이자를 받아요. 언제든 그만 받을 수 있어요</Text>
           <View style={[styles.stakeRow, stakeOver && styles.stakeRowErr]}>
             <TextInput
-              value={stakeInput}
-              onChangeText={(t) => setStakeInput(stakeKind === 'c' ? t.replace(/[^0-9]/g, '') : t.replace(/[^0-9.]/g, ''))}
-              keyboardType={stakeKind === 'c' ? 'number-pad' : 'decimal-pad'}
+              value={groupDigits(stakeInput)}
+              onChangeText={(t) => setStakeInput(onlyDigits(t))}
+              keyboardType="number-pad"
               style={[styles.stakeInput, stakeOver && styles.stakeInputErr]}
               placeholder="0"
               placeholderTextColor={colors.dim}
               autoFocus
             />
             <Text style={styles.stakeUnit}>{stakeUnit}</Text>
-            <Pressable style={styles.maxBtn} onPress={() => setStakeInput(stakeKind === 'p' ? String(+stakeMax.toFixed(4)) : String(Math.floor(stakeMax)))}>
+            <Pressable style={styles.maxBtn} onPress={() => setStakeInput(String(Math.floor(stakeMax)))}>
               <Text style={styles.maxBtnTxt}>전액</Text>
             </Pressable>
           </View>

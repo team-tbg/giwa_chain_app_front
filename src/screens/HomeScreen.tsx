@@ -143,7 +143,7 @@ export function HomeScreen({ navigation }: Props) {
         <Pressable
           style={[styles.claimBtn, claim <= 0 && styles.claimBtnOff]}
           disabled={claim <= 0}
-          onPress={claimSteps}
+          onPress={() => { void claimSteps().catch((e) => notify('받기 실패', (e as { message?: string })?.message ?? '잠시 후 다시 시도해 주세요.')); }}
         >
           <Text style={[styles.claimBtnTxt, claim <= 0 && styles.claimBtnTxtOff]}>
             {claim > 0 ? '받기' : '받았어요'}

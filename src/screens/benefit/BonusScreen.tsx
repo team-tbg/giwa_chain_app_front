@@ -8,7 +8,7 @@ import { Screen } from '../../components/Screen';
 import { Button } from '../../components/ui';
 import { toast } from '../../lib/alert';
 import { colors, radii, cardShadow, typography } from '../../theme/theme';
-import { useAppState, fmtP, pickBonus, BONUS_COOLDOWN_MS } from '../../state/AppState';
+import { useAppState, fmtP, BONUS_COOLDOWN_MS } from '../../state/AppState';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Bonus'>;
@@ -25,6 +25,7 @@ export function BonusScreen({ navigation }: Props) {
   const { points, lastBonusAt, claimBonus } = useAppState();
   const [now, setNow] = useState(Date.now());
   const [reveal, setReveal] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -34,12 +35,18 @@ export function BonusScreen({ navigation }: Props) {
   const remaining = lastBonusAt + BONUS_COOLDOWN_MS - now;
   const available = remaining <= 0;
 
-  const open = () => {
-    if (!available) return;
-    const amount = pickBonus();
-    claimBonus(amount);
-    setReveal(amount);
-    toast(`보너스 +${fmtP(amount)}P 받았어요`);
+  const open = async () => {
+    if (!available || busy) return;
+    setBusy(true);
+    try {
+      const amount = await claimBonus(); // 서버가 추첨한 금액(오프라인이면 로컬 추첨)
+      setReveal(amount);
+      toast(`보너스 +${fmtP(amount)}P 받았어요`);
+    } catch (e) {
+      toast((e as { message?: string })?.message ?? '지금은 보너스를 받을 수 없어요');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (

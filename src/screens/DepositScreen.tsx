@@ -12,6 +12,7 @@ import { Screen } from '../components/Screen';
 import { Button } from '../components/ui';
 import { colors, typography } from '../theme/theme';
 import { useAppState, won } from '../state/AppState';
+import { groupDigits, onlyDigits } from '../lib/format';
 import type { RootStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Deposit'>;
@@ -75,8 +76,8 @@ export function DepositScreen({ navigation }: Props) {
 
       <View style={[styles.manRow, overCap && styles.manRowErr]}>
         <TextInput
-          value={manwon}
-          onChangeText={(t) => setManwon(t.replace(/[^0-9]/g, ''))}
+          value={groupDigits(manwon)}
+          onChangeText={(t) => setManwon(onlyDigits(t))}
           keyboardType="number-pad"
           style={[styles.manInput, overCap && styles.manInputErr]}
           placeholder="0"

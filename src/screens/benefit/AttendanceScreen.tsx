@@ -20,12 +20,16 @@ export function AttendanceScreen({ navigation }: Props) {
   // 이번 주에 채운 칸 수(대략). attToday면 오늘까지 포함.
   const doneCount = attToday ? ((streak - 1) % 7) + 1 : streak % 7;
 
-  const onCheck = () => {
+  const onCheck = async () => {
     if (attToday) return;
     const g = Math.min(ATT_REWARD, capRoom(s));
-    checkAttendance();
-    if (g > 0) toast(`출석 완료! +${fmtP(g)}P 받았어요 🔥`);
-    else notify('출석 완료!', '오늘 적립 한도를 다 채워서 포인트는 내일 다시 쌓여요.');
+    try {
+      await checkAttendance();
+      if (g > 0) toast(`출석 완료! +${fmtP(g)}P 받았어요 🔥`);
+      else notify('출석 완료!', '오늘 적립 한도를 다 채워서 포인트는 내일 다시 쌓여요.');
+    } catch (e) {
+      toast((e as { message?: string })?.message ?? '출석 처리 중 문제가 생겼어요');
+    }
   };
 
   return (
