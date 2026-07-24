@@ -5,6 +5,7 @@
  */
 import React, { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { toast } from '../lib/alert';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Screen } from '../components/Screen';
@@ -15,7 +16,8 @@ import type { RootStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Deposit'>;
 
-const CHIPS = [10000, 100000, 300000, 500000];
+const SLIDER_MAX = 1000000; // 슬라이더는 0~100만 원(1만 원 단위)
+const INPUT_MAX_WON = 500000000; // 직접 입력은 50,000만 원까지
 const PAYS: { name: string; bg: string; mark: string; fg: string }[] = [
   { name: '토스', bg: '#0064FF', mark: 't', fg: '#fff' },
   { name: '카카오페이', bg: '#FEE500', mark: 'K', fg: '#3C1E1E' },
@@ -29,7 +31,8 @@ export function DepositScreen({ navigation }: Props) {
   const [manwon, setManwon] = useState('10'); // 만 원 단위 입력
   const [payOpen, setPayOpen] = useState(false);
 
-  const amount = Math.max(0, Math.floor(Number(manwon) || 0)) * 10000;
+  const amount = Math.min(INPUT_MAX_WON, Math.max(0, Math.floor(Number(manwon) || 0)) * 10000);
+  const overCap = (Number(manwon) || 0) > INPUT_MAX_WON / 10000; // 50,000만 원 초과 입력
 
   const openPay = () => {
     if (amount <= 0) return;
@@ -38,7 +41,9 @@ export function DepositScreen({ navigation }: Props) {
   const pay = (method: string) => {
     setPayOpen(false);
     depositCash(amount);
-    navigation.navigate('Main', { screen: 'Interest' });
+    // v10처럼 입금 후엔 이자받기 인트로가 아니라 '이자 현황(저금 대시보드)'로 보낸다.
+    // 방금 넣은 돈이 바로 보이고 저금할 수 있는 곳.
+    navigation.navigate('Grow');
     toast(`${method}으로 ${won(amount)}원 입금 완료 🎉`);
   };
 
@@ -50,28 +55,42 @@ export function DepositScreen({ navigation }: Props) {
 
       <Text style={styles.bigAmt}>{amount >= 10000 ? `${(amount / 10000).toLocaleString('ko-KR')}만 ` : `${won(amount)} `}<Text style={styles.bigWon}>원</Text></Text>
 
-      <View style={styles.chips}>
-        {CHIPS.map((v) => {
-          const on = v === amount;
-          return (
-            <Pressable key={v} onPress={() => setManwon(String(v / 10000))} style={[styles.chip, on && styles.chipOn]}>
-              <Text style={[styles.chipText, on && styles.chipTextOn]}>{v / 10000}만원</Text>
-            </Pressable>
-          );
-        })}
+      <View style={styles.sliderWrap}>
+        <Slider
+          style={styles.slider}
+          minimumValue={0}
+          maximumValue={SLIDER_MAX}
+          step={10000}
+          value={Math.min(amount, SLIDER_MAX)}
+          onValueChange={(v) => setManwon(String(Math.round(v / 10000)))}
+          minimumTrackTintColor={colors.primary}
+          maximumTrackTintColor={colors.line}
+          thumbTintColor={colors.primary}
+        />
+        <View style={styles.ticks}>
+          <Text style={styles.tick}>0</Text>
+          <Text style={styles.tick}>100만 원</Text>
+        </View>
       </View>
 
-      <View style={styles.manRow}>
+      <View style={[styles.manRow, overCap && styles.manRowErr]}>
         <TextInput
           value={manwon}
           onChangeText={(t) => setManwon(t.replace(/[^0-9]/g, ''))}
           keyboardType="number-pad"
-          style={styles.manInput}
+          style={[styles.manInput, overCap && styles.manInputErr]}
           placeholder="0"
           placeholderTextColor={colors.dim}
         />
         <Text style={styles.manUnit}>만 원</Text>
       </View>
+      {overCap ? (
+        <Pressable onPress={() => setManwon('50000')}>
+          <Text style={styles.limitErr}>최대 50,000만 원까지예요 · 눌러서 맞추기</Text>
+        </Pressable>
+      ) : (
+        <Text style={styles.limitHint}>직접 입력은 50,000만 원까지 돼요</Text>
+      )}
 
       <Button label="입금하기" large onPress={openPay} disabled={amount <= 0} style={styles.cta} />
 
@@ -106,12 +125,15 @@ const styles = StyleSheet.create({
   sub: { fontSize: 13.5, fontWeight: '600', color: colors.muted, marginTop: 6, textAlign: 'center' },
   bigAmt: { fontSize: 38, fontWeight: '900', color: colors.primary, letterSpacing: -1.5, textAlign: 'center', marginTop: 14 },
   bigWon: { fontSize: 20, fontWeight: '900' },
-  chips: { flexDirection: 'row', gap: 8, marginTop: 18 },
-  chip: { flex: 1, height: 48, borderRadius: 14, borderWidth: 1.5, borderColor: colors.line, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  chipOn: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  chipText: { fontWeight: '800', fontSize: 14, color: colors.ink },
-  chipTextOn: { color: colors.primary },
-  manRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: colors.line, borderRadius: 15, marginTop: 12, backgroundColor: colors.surface, paddingHorizontal: 16 },
+  sliderWrap: { marginTop: 18 },
+  slider: { width: '100%', height: 40 },
+  ticks: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
+  tick: { fontSize: 12, fontWeight: '800', color: colors.muted },
+  manRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: colors.line, borderRadius: 15, marginTop: 16, backgroundColor: colors.surface, paddingHorizontal: 16 },
+  limitHint: { fontSize: 12, fontWeight: '700', color: colors.muted, textAlign: 'center', marginTop: 8 },
+  manRowErr: { borderColor: colors.red, backgroundColor: '#FFF3F3' },
+  manInputErr: { color: colors.red },
+  limitErr: { fontSize: 12, fontWeight: '800', color: colors.red, textAlign: 'center', marginTop: 8 },
   manInput: { flex: 1, paddingVertical: 15, fontSize: 22, fontWeight: '900', color: colors.ink, textAlign: 'right' },
   manUnit: { fontSize: 16, fontWeight: '800', color: colors.muted, marginLeft: 8 },
   cta: { marginTop: 16 },

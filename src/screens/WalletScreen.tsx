@@ -2,13 +2,14 @@
  * 내 지갑 탭 — 전체 자산 · 보유 자산별 출금/전환 · 지갑주소 (v10, 규칙 5 완화 반영).
  * 규칙: 출금은 원탭·진짜 열림 · 시드/개인키는 "고급 설정"에만.
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { notify } from '../lib/alert';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { Screen } from '../components/Screen';
+import { WithdrawSheet } from '../components/WithdrawSheet';
 import { colors, radii, cardShadow, typography } from '../theme/theme';
 import { useAppState, won, fmtP, fmtd, PRICE, pTotal, cTotal, netWorth } from '../state/AppState';
 import type { MainTabParamList, RootStackParamList } from '../navigation/types';
@@ -34,10 +35,15 @@ export function WalletScreen({ navigation }: Props) {
     { n: '금 PAXG', v: hold.gold * PRICE.gold, c: '#C9A227', d: `${fmtd(hold.gold, 6)} PAXG`, act: 'gold' as const },
   ];
 
-  const withdraw = () => {
+  const [wOpen, setWOpen] = useState(false);
+  const openWithdraw = () => {
     if (cash <= 0) return notify('출금할 돈이 없어요', '이자 안 받고 있는 원화 자산이 없어요.');
-    withdrawCash(cash);
-    notify('보냈어요', `내 계좌로 ${won(cash)}원을 보내드렸어요. 영업일 기준 1~3일 걸려요.`);
+    setWOpen(true);
+  };
+  const doWithdraw = (amt: number) => {
+    withdrawCash(amt);
+    setWOpen(false);
+    notify('보냈어요', `내 계좌로 ${won(amt)}원을 보내드렸어요. 영업일 기준 1~3일 걸려요.`);
   };
   const sell = (kind: 'btc' | 'gold', name: string) => {
     if (hold[kind] <= 0) return notify('출금할 자산이 없어요', `보유한 ${name}가 없어요.`);
@@ -86,7 +92,7 @@ export function WalletScreen({ navigation }: Props) {
           {p.act === 'cash' ? (
             <View style={styles.wact}>
               <WBtn label="입금" onPress={() => navigation.navigate('Deposit')} />
-              <WBtn label="출금" onPress={withdraw} />
+              <WBtn label="출금" onPress={openWithdraw} />
             </View>
           ) : p.act ? (
             <View style={styles.wact}>
@@ -130,6 +136,8 @@ export function WalletScreen({ navigation }: Props) {
           );
         })
       )}
+
+      <WithdrawSheet visible={wOpen} cash={cash} onClose={() => setWOpen(false)} onConfirm={doWithdraw} />
     </Screen>
   );
 }

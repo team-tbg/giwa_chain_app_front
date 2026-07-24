@@ -10,6 +10,7 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { Screen } from '../components/Screen';
 import { colors, radii, cardShadow, typography } from '../theme/theme';
+import { useAppState } from '../state/AppState';
 import type { MainTabParamList, RootStackParamList } from '../navigation/types';
 
 type Route = 'Attendance' | 'Bonus';
@@ -33,6 +34,9 @@ type Props = CompositeScreenProps<
 >;
 
 export function BenefitScreen({ navigation }: Props) {
+  const { attToday } = useAppState();
+  // 완료 표시는 앱이 실제로 '오늘 완료'를 아는 항목만 (지금은 출석체크). 나머지는 준비 중이라 그대로.
+  const isDone = (it: Item) => it.title === '출석체크' && attToday;
   const open = (it: Item) => {
     if (it.route) navigation.navigate(it.route);
     else notify(it.title, '곧 만나요. 준비 중이에요.');
@@ -40,7 +44,7 @@ export function BenefitScreen({ navigation }: Props) {
   return (
     <Screen scroll={false}>
       <Text style={styles.h1}>혜택</Text>
-      <Text style={styles.sub}>걸음 말고도 포인트 버는 방법이 많아요</Text>
+      <Text style={styles.sub}>누르면 포인트를 모을 수 있어요</Text>
       <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
         {ITEMS.map((it) => (
           <Pressable key={it.title} style={styles.row} onPress={() => open(it)}>
@@ -49,9 +53,12 @@ export function BenefitScreen({ navigation }: Props) {
               <Text style={styles.title}>{it.title}</Text>
               <Text style={styles.desc}>{it.desc}</Text>
             </View>
-            <Text style={styles.go}>›</Text>
+            {isDone(it)
+              ? <View style={styles.okChip}><Text style={styles.okChipTxt}>완료</Text></View>
+              : <Text style={styles.go}>›</Text>}
           </Pressable>
         ))}
+        <Text style={styles.hint}>완료한 항목은 내일 다시 열려요</Text>
       </ScrollView>
     </Screen>
   );
@@ -72,4 +79,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 15, fontWeight: '800', color: colors.ink, letterSpacing: -0.3 },
   desc: { fontSize: 12.5, fontWeight: '600', color: colors.muted, marginTop: 2 },
   go: { fontSize: 20, color: colors.dim },
+  okChip: { backgroundColor: colors.rewardSoft, borderRadius: radii.pill, paddingVertical: 5, paddingHorizontal: 11 },
+  okChipTxt: { fontSize: 12, fontWeight: '800', color: colors.rewardDeep },
+  hint: { fontSize: 12.5, fontWeight: '700', color: colors.muted, textAlign: 'center', marginTop: 10 },
 });

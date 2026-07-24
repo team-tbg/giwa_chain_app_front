@@ -48,7 +48,7 @@
 
 ## 기술
 - FE: React Native + Expo(SDK 57), TypeScript. 네비: React Navigation. 링/그래픽: react-native-svg. 위치·날씨: expo-location + Open-Meteo.
-- 걸음수: Android Health Connect(`react-native-health-connect`, 백그라운드 포함) → 가속도계(expo-sensors) 폴백. 프론트 관리·DB 미저장.
+- 걸음수: Android 하드웨어 만보 센서(`expo-android-pedometer`, TYPE_STEP_COUNTER + 포그라운드 서비스) · iOS `expo-sensors` Pedometer(CMPedometer) → 가속도계(expo-sensors) 폴백. 프론트 관리·DB 미저장.
 - 로그인: 네이티브 `@react-native-google-signin`, 웹 expo-auth-session. (카카오=가상자산 제한, 토스=심사로 제외. 구글만.)
 - 테마: 라이트 · 핀테크 블루 (v10 팔레트: blue `#2F6BF3`, grow `#12B76A`, gold `#FDB022`, 앱 배경 `#F5F7FB`). 토큰은 `src/theme/theme.ts`.
 - 변경 후 `npx tsc --noEmit` 로 타입 확인.

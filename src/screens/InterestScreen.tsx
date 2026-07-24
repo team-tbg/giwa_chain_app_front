@@ -9,6 +9,7 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { Screen } from '../components/Screen';
 import { Button, QMark } from '../components/ui';
+import { TIP_INTEREST } from '../lib/tips';
 import { colors, radii, cardShadow, typography } from '../theme/theme';
 import { useAppState } from '../state/AppState';
 import type { MainTabParamList, RootStackParamList } from '../navigation/types';
@@ -18,12 +19,10 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<RootStackParamList>
 >;
 
-const TIP_INTEREST =
-  '나드리에 저금한 포인트와 원화는 업비트가 만든 레이어2 블록체인 GIWA 체인의 디파이 플랫폼에 예치돼요. 거기서 생긴 수익을 이자로 돌려드려요. 지갑 만들기·가스비·전송 같은 절차는 나드리가 대신 처리해요. 이자율은 시장 상황에 따라 달라질 수 있어요.';
-
+// v10 intro-list와 1:1 일치 (💧 / 🚪 / 👀)
 const BENEFITS = [
   { ic: '💧', t: '꾸준히 이자가 적립돼요' },
-  { ic: '🪵', t: '언제든 뺄 수 있어요' },
+  { ic: '🚪', t: '언제든 뺄 수 있어요' },
   { ic: '👀', t: '실시간으로 확인해요' },
 ];
 

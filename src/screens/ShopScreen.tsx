@@ -4,10 +4,13 @@
  */
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { notify, confirmAction, toast } from '../lib/alert';
 import { Screen } from '../components/Screen';
 import { colors, radii, cardShadow, typography } from '../theme/theme';
-import { useAppState, won, fmtP, PRICE, pTotal } from '../state/AppState';
+import { useAppState, won, fmtP, fmtd, PRICE, pTotal } from '../state/AppState';
+import type { MainTabParamList } from '../navigation/types';
 
 type Cat = 'cash' | 'btc' | 'gold' | 'coupon';
 type Product = { cat: Cat; emoji: string; brand: string; name: string; p: number; won?: number };
@@ -49,6 +52,7 @@ const BEST: Product[] = [PRODUCTS[3], PRODUCTS[5], PRODUCTS[0], PRODUCTS[1], PRO
 const MEDAL = ['', '🥇', '🥈', '🥉'];
 
 export function ShopScreen() {
+  const nav = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const s = useAppState();
   const { points, pointsToCash, buyAsset } = s;
   const [cat, setCat] = useState<Cat | 'all'>('all');
@@ -102,7 +106,14 @@ export function ShopScreen() {
       <View style={styles.head}>
         <Text style={styles.headK}>쓸 수 있는 포인트</Text>
         <Text style={styles.headV}>{fmtP(points)}P</Text>
-        {staked > 0 && <Text style={styles.headStake}>🌱 이자 받는 중 {fmtP(staked)}P</Text>}
+        {staked > 0 ? (
+          <View style={styles.stakebar}>
+            <Text style={styles.headStake}>🌱 이자 받는 중 {fmtd(staked, 4)}P</Text>
+            <Pressable onPress={() => nav.navigate('Interest')}><Text style={styles.useLink}>사용하기</Text></Pressable>
+          </View>
+        ) : (
+          <Text style={styles.emptyStake}>모은 포인트를 이자받기에 넣으면 매 순간 불어나요</Text>
+        )}
       </View>
 
       {/* 실시간 후기 */}
@@ -181,7 +192,10 @@ const styles = StyleSheet.create({
   head: { backgroundColor: colors.surface, borderRadius: 20, padding: 18, ...cardShadow },
   headK: { fontSize: 12, fontWeight: '700', color: colors.muted },
   headV: { fontSize: 30, fontWeight: '900', letterSpacing: -1.4, color: colors.ink, marginTop: 2 },
-  headStake: { fontSize: 11.5, fontWeight: '700', color: colors.rewardDeep, marginTop: 6 },
+  headStake: { fontSize: 11.5, fontWeight: '700', color: colors.rewardDeep },
+  stakebar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
+  useLink: { fontSize: 12.5, fontWeight: '800', color: colors.primary },
+  emptyStake: { fontSize: 11.5, fontWeight: '700', color: colors.muted, marginTop: 6 },
 
   sect: { fontSize: 15, fontWeight: '800', color: colors.ink, marginTop: 22, marginBottom: 10 },
 

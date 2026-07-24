@@ -10,9 +10,10 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { Screen } from '../components/Screen';
-import { ProgressRing } from '../components/ui';
+import { ProgressRing, QMark } from '../components/ui';
+import { TIP_TODAY, TIP_STAKE, TIP_ASSET } from '../lib/tips';
 import { colors, radii, cardShadow } from '../theme/theme';
-import { DAILY_CAP, BONUS_COOLDOWN_MS, useAppState, won, fmtP, claimableP, pTotal, cTotal } from '../state/AppState';
+import { DAILY_CAP, BONUS_COOLDOWN_MS, useAppState, won, fmtP, fmtd, claimableP, pTotal, cTotal } from '../state/AppState';
 import { usePedometer } from '../hooks/usePedometer';
 import { useLocation } from '../hooks/useLocation';
 import { useWeather } from '../hooks/useWeather';
@@ -153,7 +154,10 @@ export function HomeScreen({ navigation }: Props) {
       {/* 오늘 모은 포인트 (일일 한도) */}
       <Pressable style={styles.today} onPress={() => soon('활동 기록')}>
         <View style={styles.todayHead}>
-          <Text style={styles.todayLab}>오늘 모은 포인트</Text>
+          <View style={styles.labelRow}>
+            <Text style={styles.todayLab}>오늘 모은 포인트</Text>
+            <QMark tip={TIP_TODAY} />
+          </View>
           <Text style={styles.todayVal}>{fmtP(todayTotal)} / {fmtP(DAILY_CAP)}P</Text>
         </View>
         <View style={styles.pbarTrack}>
@@ -167,11 +171,17 @@ export function HomeScreen({ navigation }: Props) {
       {/* 자산 스트립 */}
       <View style={styles.assetStrip}>
         <Pressable style={styles.asset} onPress={() => navigation.navigate('Interest')}>
-          <Text style={styles.assetLab}>이자 받는 포인트</Text>
-          <Text style={styles.assetVal}>{fmtP(staked)}P</Text>
+          <View style={styles.labelRow}>
+            <Text style={styles.assetLab}>이자 받는 포인트</Text>
+            <QMark tip={TIP_STAKE} />
+          </View>
+          <Text style={styles.assetVal}>{fmtd(staked, 2)}P</Text>
         </Pressable>
         <Pressable style={styles.asset} onPress={() => navigation.navigate('Wallet')}>
-          <Text style={styles.assetLab}>내 자산</Text>
+          <View style={styles.labelRow}>
+            <Text style={styles.assetLab}>내 자산</Text>
+            <QMark tip={TIP_ASSET} openLeft />
+          </View>
           <Text style={styles.assetVal}>{won(asset)}원</Text>
         </Pressable>
       </View>
@@ -269,7 +279,8 @@ const styles = StyleSheet.create({
   claimBtnTxtOff: { color: colors.dim },
 
   today: { marginTop: 12 },
-  todayHead: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 7 },
+  todayHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   todayLab: { fontSize: 12, fontWeight: '800', color: colors.muted },
   todayVal: { fontSize: 12, fontWeight: '800', color: colors.ink, fontVariant: ['tabular-nums'] },
   pbarTrack: { height: 8, backgroundColor: colors.line, borderRadius: radii.pill, overflow: 'hidden' },
