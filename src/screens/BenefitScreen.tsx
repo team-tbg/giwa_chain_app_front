@@ -12,13 +12,13 @@ import { Screen } from '../components/Screen';
 import { colors, radii, cardShadow, typography } from '../theme/theme';
 import type { MainTabParamList, RootStackParamList } from '../navigation/types';
 
-type Route = 'Attendance' | 'Bonus' | 'Quiz';
+type Route = 'Attendance' | 'Bonus';
 type Item = { emoji: string; bg: string; title: string; desc: string; route?: Route };
 
 const ITEMS: Item[] = [
   { emoji: '📅', bg: colors.primarySoft, title: '출석체크', desc: '7일 연속 출석해 보세요', route: 'Attendance' },
   { emoji: '💰', bg: colors.goldSoft, title: '오늘의 보너스', desc: '6시간마다 한 번, 최대 300P를 받아요', route: 'Bonus' },
-  { emoji: '🧠', bg: '#FDECEC', title: 'OX 금융퀴즈', desc: '하루 5문제, 맞히면 5P를 받아요', route: 'Quiz' },
+  { emoji: '🧠', bg: '#FDECEC', title: 'OX 금융퀴즈', desc: '하루 5문제, 맞히면 5P를 받아요' },
   { emoji: '📺', bg: '#FDECEC', title: '영상 보고 받기', desc: '짧은 영상을 보고 포인트를 받아요' },
   { emoji: '🎮', bg: colors.rewardSoft, title: '게임하고 받기', desc: '20초 동안 포인트를 모아봐요' },
   { emoji: '🎁', bg: '#F0E8FE', title: '나드리 뽑기', desc: '100P로 한 번 뽑아요' },

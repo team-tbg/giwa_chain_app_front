@@ -53,7 +53,8 @@ type AppState = {
   stepClaimed: boolean; // 오늘 걸음 포인트를 받았는지
 
   points: number; // 쓸 수 있는 포인트(P)
-  todayEarned: number; // 오늘 모은 포인트(P) — 일일 한도 대비
+  todayEarned: number; // 오늘 모은 포인트(P) — 일일 한도(200P) 대비 (걸음·출석·퀴즈·게임·영상)
+  todayBonus: number; // 오늘 받은 보너스(P) — 한도 미포함, 표시용 별도 집계
 
   pStake: number; // 이자받기에 저금한 포인트(P)
   pEarn: number; // 저금 포인트에 붙은 이자(P)
@@ -109,6 +110,7 @@ const initial: AppState = {
 
   points: 30154,
   todayEarned: 0,
+  todayBonus: 0,
 
   pStake: 0,
   pEarn: 0,
@@ -236,8 +238,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const claimBonus = useCallback((amount: number) => {
-    // 보너스는 일일 한도 미적용(v10). 쿨다운은 호출부에서 확인.
-    setState((s) => ({ ...s, points: s.points + amount, lastBonusAt: Date.now(), history: pushLog(s.history, '오늘의 보너스', amount, 'P') }));
+    // 보너스는 일일 한도 미적용(v10) — 총 포인트에 바로 반영 + 오늘 보너스 별도 집계(표시용).
+    setState((s) => ({
+      ...s, points: s.points + amount, todayBonus: s.todayBonus + amount,
+      lastBonusAt: Date.now(), history: pushLog(s.history, '오늘의 보너스', amount, 'P'),
+    }));
   }, []);
 
   const answerQuiz = useCallback((correct: boolean) => {

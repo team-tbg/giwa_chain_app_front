@@ -12,7 +12,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { Screen } from '../components/Screen';
 import { ProgressRing } from '../components/ui';
 import { colors, radii, cardShadow } from '../theme/theme';
-import { DAILY_CAP, useAppState, won, fmtP, claimableP, pTotal, cTotal } from '../state/AppState';
+import { DAILY_CAP, BONUS_COOLDOWN_MS, useAppState, won, fmtP, claimableP, pTotal, cTotal } from '../state/AppState';
 import { usePedometer } from '../hooks/usePedometer';
 import { useLocation } from '../hooks/useLocation';
 import { useWeather } from '../hooks/useWeather';
@@ -28,7 +28,7 @@ const soon = (label: string) =>
 
 export function HomeScreen({ navigation }: Props) {
   const s = useAppState();
-  const { user, goal, streak, points, todayEarned, cash, claimSteps, setSteps } = s;
+  const { user, goal, streak, points, todayEarned, todayBonus, cash, attToday, lastBonusAt, claimSteps, setSteps } = s;
   const ped = usePedometer();
   const loc = useLocation();
   const weather = useWeather(loc.coords);
@@ -55,6 +55,8 @@ export function HomeScreen({ navigation }: Props) {
   const claim = claimableP(s);
   const staked = pTotal(s);
   const asset = cash + cTotal(s);
+  // 빨간 알림점 = 아직 안 한 활동. 하고 나면 사라짐.
+  const bonusReady = Date.now() - lastBonusAt >= BONUS_COOLDOWN_MS;
 
   return (
     <Screen>
@@ -142,6 +144,9 @@ export function HomeScreen({ navigation }: Props) {
         <View style={styles.pbarTrack}>
           <View style={[styles.pbarFill, { width: `${todayPct}%` }]} />
         </View>
+        {todayBonus > 0 && (
+          <Text style={styles.bonusNote}>🎁 오늘 받은 보너스 +{fmtP(todayBonus)}P · 한도 별도</Text>
+        )}
       </Pressable>
 
       {/* 자산 스트립 */}
@@ -158,9 +163,9 @@ export function HomeScreen({ navigation }: Props) {
 
       {/* 퀵 메뉴 */}
       <View style={styles.quickRow}>
-        <QuickBtn emoji="📅" bg={colors.primarySoft} label="출석체크" dot onPress={() => navigation.navigate('Attendance')} />
-        <QuickBtn emoji="💰" bg={colors.goldSoft} label="보너스" dot onPress={() => navigation.navigate('Bonus')} />
-        <QuickBtn emoji="🧠" bg="#FDECEC" label="OX퀴즈" dot onPress={() => navigation.navigate('Quiz')} />
+        <QuickBtn emoji="📅" bg={colors.primarySoft} label="출석체크" dot={!attToday} onPress={() => navigation.navigate('Attendance')} />
+        <QuickBtn emoji="💰" bg={colors.goldSoft} label="보너스" dot={bonusReady} onPress={() => navigation.navigate('Bonus')} />
+        <QuickBtn emoji="🧠" bg="#FDECEC" label="OX퀴즈" onPress={() => soon('OX 금융퀴즈')} />
         <QuickBtn emoji="🎁" bg="#F0E8FE" label="뽑기" onPress={() => soon('나드리 뽑기')} />
       </View>
       <View style={styles.quickWide}>
@@ -253,6 +258,7 @@ const styles = StyleSheet.create({
   todayVal: { fontSize: 12, fontWeight: '800', color: colors.ink, fontVariant: ['tabular-nums'] },
   pbarTrack: { height: 8, backgroundColor: colors.line, borderRadius: radii.pill, overflow: 'hidden' },
   pbarFill: { height: '100%', backgroundColor: colors.reward, borderRadius: radii.pill },
+  bonusNote: { fontSize: 11.5, fontWeight: '800', color: '#B4740A', marginTop: 7 },
 
   assetStrip: { flexDirection: 'row', gap: 8, marginTop: 12 },
   asset: { flex: 1, backgroundColor: colors.surface, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14, ...cardShadow },
