@@ -9,6 +9,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, AppState as RNAppState } from 'react-native';
 import { Pedometer, Accelerometer } from 'expo-sensors';
+import { toast } from '../lib/alert';
+
+const errMsg = (e: unknown) => (e as { message?: string })?.message ?? String(e);
 
 // 상시 알림 문구(마운트 + 포그라운드 복귀 재표시에 공용)
 const NOTIF = { title: '나드리', contentTemplate: '오늘 %d 걸음 걸었어요 👟' };
@@ -104,19 +107,22 @@ export function usePedometer(): PedometerState {
   const [state, setState] = useState<PedState>({ available: null, todaySteps: 0 });
   const cleanupRef = useRef<() => void>(() => {});
 
-  // 만보 서비스 수동 복구 액션(삼성 스로틀 대응) — 개발 패널에서 호출.
+  // 만보 서비스 수동 복구 액션(삼성 스로틀 대응) — 개발 패널에서 호출. 진단 토스트 포함.
   const requestBattery = useCallback(async () => {
     try {
+      const before = await ABP?.isBatteryOptimizationExcluded?.();
       await ABP?.requestBatteryOptimizationExemption?.();
-    } catch {
-      /* 무시 */
+      toast(before ? '배터리 예외: 이미 허용됨' : '배터리 예외: 허용 요청함');
+    } catch (e) {
+      toast(`배터리 오류: ${errMsg(e)}`);
     }
   }, []);
   const openAutostart = useCallback(async () => {
     try {
       if (await ABP?.canOpenAutostartSettings?.()) await ABP?.openAutostartSettings?.();
-    } catch {
-      /* 무시 */
+      else toast('이 기기는 자동실행 설정 미지원(삼성)');
+    } catch (e) {
+      toast(`자동실행 오류: ${errMsg(e)}`);
     }
   }, []);
   const restart = useCallback(async () => {
@@ -124,8 +130,9 @@ export function usePedometer(): PedometerState {
       await ABP?.setupBackgroundUpdates?.(NOTIF);
       const n = await ABP?.getStepsCountAsync?.();
       if (typeof n === 'number') setState((s) => ({ ...s, todaySteps: n }));
-    } catch {
-      /* 무시 */
+      toast(`서비스 재시작 · 재조회 ${typeof n === 'number' ? n : '?'}걸음`);
+    } catch (e) {
+      toast(`재시작 오류: ${errMsg(e)}`);
     }
   }, []);
 
@@ -152,22 +159,49 @@ export function usePedometer(): PedometerState {
             } catch {
               /* 알림/백그라운드/배터리 설정 실패해도 조회는 시도 */
             }
-            const today = await ABP.getStepsCountAsync();
-            if (mounted) setState({ available: true, todaySteps: today ?? 0, source: 'pedometer' });
+            // ABP(백그라운드 누적) + expo-sensors(포그라운드 실시간) 결합.
+            // ABP 서비스가 멈춰도(삼성) 앱 열려 있는 동안엔 expo-sensors 델타로 걸음이 실시간 증가.
+            let abpSteps = (await ABP.getStepsCountAsync()) ?? 0;
+            let expoBase = abpSteps; // 라이브 델타 기준점
+            let expoDelta = 0;
+            const push = () => {
+              const v = Math.max(abpSteps, expoBase + expoDelta);
+              if (mounted) setState((s) => (v === s.todaySteps ? s : { ...s, todaySteps: v, source: 'pedometer' }));
+            };
+            if (mounted) setState({ available: true, todaySteps: abpSteps, source: 'pedometer' });
+
             const sub = ABP.subscribeToChanges((e) => {
-              if (mounted) setState((s) => (e.steps === s.todaySteps ? s : { ...s, todaySteps: e.steps }));
+              if (typeof e.steps === 'number') {
+                abpSteps = e.steps;
+                push();
+              }
             });
-            // 백업: 구독 이벤트가 끊겨도(삼성 스로틀 등) 4초마다 오늘 걸음 재조회 → 멈춤 방지.
+            // 백업 폴링: 구독이 끊겨도 4초마다 ABP 재조회.
             const poll = setInterval(async () => {
               try {
                 const n = await ABP!.getStepsCountAsync();
-                if (mounted && typeof n === 'number') {
-                  setState((s) => (n === s.todaySteps ? s : { ...s, todaySteps: n }));
+                if (typeof n === 'number') {
+                  abpSteps = n;
+                  push();
                 }
               } catch {
                 /* 조회 실패는 무시 */
               }
             }, 4000);
+            // 라이브 포그라운드 카운트(expo-sensors watchStepCount) — ABP가 멈춰도 앱 열려 있으면 실시간 증가.
+            let expoSub: { remove: () => void } | null = null;
+            try {
+              if (await Pedometer.isAvailableAsync()) {
+                expoBase = abpSteps;
+                expoSub = Pedometer.watchStepCount((r) => {
+                  expoDelta = r.steps;
+                  push();
+                });
+              }
+            } catch {
+              /* expo-sensors 미지원이면 ABP만 사용 */
+            }
+
             cleanupRef.current = () => {
               try {
                 sub.remove();
@@ -175,6 +209,11 @@ export function usePedometer(): PedometerState {
                 /* noop */
               }
               clearInterval(poll);
+              try {
+                expoSub?.remove();
+              } catch {
+                /* noop */
+              }
             };
             return;
           }
