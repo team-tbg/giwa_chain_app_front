@@ -7,8 +7,11 @@
  * 걸음수는 프론트에서만 관리(DB 저장 안 함).
  */
 import { useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { Platform, AppState as RNAppState } from 'react-native';
 import { Pedometer, Accelerometer } from 'expo-sensors';
+
+// 상시 알림 문구(마운트 + 포그라운드 복귀 재표시에 공용)
+const NOTIF = { title: '나드리', contentTemplate: '오늘 %d 걸음 걸었어요 👟' };
 
 export type PedometerState = {
   available: boolean | null; // null = 확인 중
@@ -107,7 +110,7 @@ export function usePedometer(): PedometerState {
           } else {
             try {
               await ABP.requestNotificationPermissions(); // 상시 알림용(거부돼도 포그라운드 카운트는 됨)
-              await ABP.setupBackgroundUpdates({ title: '나드리', contentTemplate: '오늘 %d 걸음 걸었어요 👟' });
+              await ABP.setupBackgroundUpdates(NOTIF);
               // 삼성 등에서 배터리 최적화가 서비스를 죽이면 백그라운드·알림 갱신이 멈춤 → 예외 요청
               const excluded = (await ABP.isBatteryOptimizationExcluded?.()) ?? true;
               if (!excluded) await ABP.requestBatteryOptimizationExemption?.();
@@ -173,6 +176,15 @@ export function usePedometer(): PedometerState {
       mounted = false;
       cleanupRef.current();
     };
+  }, []);
+
+  // 사용자가 상시 알림을 지워도, 앱에 다시 들어오면 재표시(서비스는 계속 돎).
+  useEffect(() => {
+    if (!ABP) return;
+    const sub = RNAppState.addEventListener('change', (st) => {
+      if (st === 'active') ABP?.setupBackgroundUpdates(NOTIF).catch(() => {});
+    });
+    return () => sub.remove();
   }, []);
 
   return state;

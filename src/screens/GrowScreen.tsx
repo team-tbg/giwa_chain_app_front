@@ -23,7 +23,8 @@ export function GrowScreen({ navigation }: Props) {
     stakePoints, unstakePoints, stakeCash, unstakeCash, withdrawCash } = s;
 
   useEffect(() => {
-    const id = setInterval(tickGrowth, 700);
+    // '매초 붙는' 이자 시뮬 — 1초 틱(전역 상태 갱신이라 화면 있을 때만 돎, 배터리 절약).
+    const id = setInterval(tickGrowth, 1000);
     return () => clearInterval(id);
   }, [tickGrowth]);
 
