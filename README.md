@@ -19,6 +19,18 @@
 
 > 실기기 USB 테스트: 백엔드를 `127.0.0.1:8000`에 띄우고 `adb reverse tcp:8000 tcp:8000` 후 `.env` 를 `http://localhost:8000/v1` 로.
 
+### 원클릭 실행 (백엔드 + 프론트)
+
+PowerShell에서 [scripts/run-dev.ps1](./scripts/run-dev.ps1) 하나로 백엔드(새 창)·adb reverse·프론트를 함께 띄운다(프론트 루트에서 실행):
+
+```powershell
+./scripts/run-dev.ps1            # 백엔드 + 프론트 빌드/설치/실행
+./scripts/run-dev.ps1 -Start     # 이미 설치돼 있으면 Metro만(빠름)
+./scripts/run-dev.ps1 -NoBackend # 프론트만
+```
+
+> 백엔드는 기본적으로 `../naduri-backend` 를 찾는다(`-BackendDir` 로 변경). uv 파이썬은 `-Py`(기본 3.12.12), 포트는 `-Port`(기본 8000).
+
 ## 스택
 
 - **React Native + Expo** (SDK 57), TypeScript

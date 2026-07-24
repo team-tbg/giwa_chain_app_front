@@ -88,6 +88,8 @@ type AppState = {
 
   history: LedgerEntry[]; // 최근 거래·활동 원장(내 지갑 최근 내역·활동 기록)
   push: boolean; // 푸시 알림 on/off
+
+  authReady: boolean; // 부팅 시 저장된 세션 복원 검사가 끝났는지(네비 초기 라우트 결정용)
 };
 
 type AppActions = {
@@ -146,6 +148,7 @@ const initial: AppState = {
 
   history: [],
   push: false,
+  authReady: false,
 };
 
 const Ctx = createContext<(AppState & AppActions) | null>(null);
@@ -156,12 +159,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  // 서버에서 잔액·저금 포지션을 받아 로컬 상태를 맞춘다(로그인 후·앱 진입 시). best-effort.
+  // 서버에서 잔액·저금·오늘 상태를 받아 로컬을 맞춘다(로그인 후·앱 진입 시). best-effort.
+  // 걸음/출석/보너스 '오늘 했는지'는 별도 상태 엔드포인트가 없어 포인트 원장(history)에서 도출한다.
+  // (권장 설계는 GET /me/summary — docs/11-api-spec.md §2. 구현되면 이 로직을 대체.)
   const hydrate = useCallback(async () => {
     if (!(await isOnline())) return;
-    const [bal, pos] = await Promise.allSettled([
+    const [bal, pos, hist] = await Promise.allSettled([
       pointsApi.getBalance(),
       savingsApi.getPositions(),
+      pointsApi.getHistory(100),
     ]);
     setState((s) => {
       let ns = s;
@@ -175,24 +181,62 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           pSince: p.startedAt ? Date.parse(p.startedAt) : Date.now(),
         };
       }
+      if (hist.status === 'fulfilled') {
+        const items = hist.value;
+        const dayUTC = (iso: string) => iso.slice(0, 10); // 서버 기준 UTC 일자
+        const today = new Date().toISOString().slice(0, 10);
+        const isToday = (iso: string) => dayUTC(iso) === today;
+
+        const stepClaimed = items.some((i) => i.type === 'STEP_CLAIM' && isToday(i.createdAt));
+        const attToday = items.some((i) => i.type === 'ATTENDANCE' && isToday(i.createdAt));
+        const bonusTimes = items.filter((i) => i.type === 'BONUS').map((i) => Date.parse(i.createdAt));
+        const lastBonusAt = bonusTimes.length ? Math.max(...bonusTimes) : 0;
+        const todayEarned = items
+          .filter((i) => i.countsToDailyCap && isToday(i.createdAt) && i.deltaP > 0)
+          .reduce((a, i) => a + i.deltaP, 0);
+        const todayBonus = items
+          .filter((i) => i.type === 'BONUS' && isToday(i.createdAt))
+          .reduce((a, i) => a + i.deltaP, 0);
+
+        // 연속 출석수: ATTENDANCE 일자에서 오늘(또는 어제)부터 연속된 날 수.
+        const attDates = new Set(items.filter((i) => i.type === 'ATTENDANCE').map((i) => dayUTC(i.createdAt)));
+        let streak = 0;
+        const d = new Date();
+        if (!attDates.has(today)) d.setUTCDate(d.getUTCDate() - 1);
+        while (attDates.has(d.toISOString().slice(0, 10))) {
+          streak += 1;
+          d.setUTCDate(d.getUTCDate() - 1);
+        }
+
+        ns = { ...ns, stepClaimed, attToday, lastBonusAt, todayEarned, todayBonus, streak };
+      }
       return ns;
     });
   }, []);
 
-  // 앱 진입 시 저장된 세션이 있으면 자동 동기화.
+  // 부팅: 저장된 세션이 있으면 로그인 상태로 복원하고 동기화. 끝나면 네비 게이트 해제.
   useEffect(() => {
-    void hydrate();
+    (async () => {
+      const token = (await tokenStore.getAccess()) || (await tokenStore.getRefresh());
+      if (token) {
+        const nick = await tokenStore.getNick();
+        setState((s) => ({ ...s, user: { name: nick ?? '나드리회원', provider: 'google' } }));
+        await hydrate();
+      }
+      setState((s) => ({ ...s, authReady: true }));
+    })();
   }, [hydrate]);
 
   const login = useCallback((user: User) => {
+    void tokenStore.saveNick(user.name); // 다음 부팅 때 로그인 유지 표시용
     setState((s) => ({ ...s, user }));
     void hydrate(); // 로그인 직후 서버 값으로 맞춘다.
   }, [hydrate]);
   const logout = useCallback(() => {
-    void apiLogout(); // 서버 세션·저장 토큰 정리(실패해도 로컬은 초기화)
-    setState((s) => ({ ...s, user: null }));
+    void apiLogout(); // 서버 세션·저장 토큰(+닉네임) 정리
+    setState(() => ({ ...initial, authReady: true })); // 다른 유저 데이터 안 남게 초기화
   }, []);
-  const reset = useCallback(() => setState(initial), []);
+  const reset = useCallback(() => setState({ ...initial, authReady: true }), []);
 
   const setSteps = useCallback((n: number) => {
     setState((s) => (n === s.steps ? s : { ...s, steps: n }));

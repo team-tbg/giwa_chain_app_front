@@ -6,6 +6,7 @@ import * as SecureStore from 'expo-secure-store';
 
 const ACCESS = 'naduri.accessToken';
 const REFRESH = 'naduri.refreshToken';
+const NICK = 'naduri.nick';
 
 const isWeb = Platform.OS === 'web';
 const webStore = (globalThis as { localStorage?: { setItem(k: string, v: string): void; getItem(k: string): string | null; removeItem(k: string): void } }).localStorage;
@@ -35,7 +36,10 @@ export const tokenStore = {
   },
   getAccess: () => getItem(ACCESS),
   getRefresh: () => getItem(REFRESH),
+  // 부팅 시 로그인 화면 표시용 닉네임(백엔드 /me가 없어 로컬 캐시). 민감정보 아님.
+  saveNick: (nick: string) => setItem(NICK, nick),
+  getNick: () => getItem(NICK),
   async clear() {
-    await Promise.all([delItem(ACCESS), delItem(REFRESH)]);
+    await Promise.all([delItem(ACCESS), delItem(REFRESH), delItem(NICK)]);
   },
 };
