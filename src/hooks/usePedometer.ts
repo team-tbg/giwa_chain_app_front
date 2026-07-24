@@ -6,18 +6,26 @@
  *  3) 폴백: 가속도계(웹/미지원) — 포그라운드만
  * 걸음수는 프론트에서만 관리(DB 저장 안 함).
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, AppState as RNAppState } from 'react-native';
 import { Pedometer, Accelerometer } from 'expo-sensors';
 
 // 상시 알림 문구(마운트 + 포그라운드 복귀 재표시에 공용)
 const NOTIF = { title: '나드리', contentTemplate: '오늘 %d 걸음 걸었어요 👟' };
 
-export type PedometerState = {
+// 측정 상태(내부 useState 값)
+type PedState = {
   available: boolean | null; // null = 확인 중
   todaySteps: number;
   source?: 'pedometer' | 'accel';
   error?: string;
+};
+
+export type PedometerState = PedState & {
+  // 삼성 등에서 서비스가 죽을 때 수동 복구용(개발 패널에서 호출).
+  requestBattery: () => Promise<void>; // 배터리 최적화 예외 요청
+  openAutostart: () => Promise<void>; // OEM 자동실행 설정 열기
+  restart: () => Promise<void>; // 만보 서비스 재시작 + 즉시 재조회
 };
 
 // Android 백그라운드 만보기 — 웹/iOS 번들에서 로드 안 되게 가드 require.
@@ -30,6 +38,8 @@ type ABPModule = {
   subscribeToChanges: (l: (e: { steps: number; timestamp: number }) => void) => { remove: () => void };
   isBatteryOptimizationExcluded?: () => Promise<boolean>;
   requestBatteryOptimizationExemption?: () => Promise<boolean>;
+  canOpenAutostartSettings?: () => Promise<boolean>;
+  openAutostartSettings?: () => Promise<boolean>;
 };
 let ABP: ABPModule | null = null;
 if (Platform.OS === 'android') {
@@ -51,7 +61,7 @@ const HIGH = 1.18;
 const LOW = 1.06;
 const MIN_STEP_MS = 280;
 
-type Setter = React.Dispatch<React.SetStateAction<PedometerState>>;
+type Setter = React.Dispatch<React.SetStateAction<PedState>>;
 
 function startAccelerometer(setState: Setter, isMounted: () => boolean, note?: string): () => void {
   let sub: { remove: () => void } | null = null;
@@ -91,8 +101,33 @@ function startAccelerometer(setState: Setter, isMounted: () => boolean, note?: s
 }
 
 export function usePedometer(): PedometerState {
-  const [state, setState] = useState<PedometerState>({ available: null, todaySteps: 0 });
+  const [state, setState] = useState<PedState>({ available: null, todaySteps: 0 });
   const cleanupRef = useRef<() => void>(() => {});
+
+  // 만보 서비스 수동 복구 액션(삼성 스로틀 대응) — 개발 패널에서 호출.
+  const requestBattery = useCallback(async () => {
+    try {
+      await ABP?.requestBatteryOptimizationExemption?.();
+    } catch {
+      /* 무시 */
+    }
+  }, []);
+  const openAutostart = useCallback(async () => {
+    try {
+      if (await ABP?.canOpenAutostartSettings?.()) await ABP?.openAutostartSettings?.();
+    } catch {
+      /* 무시 */
+    }
+  }, []);
+  const restart = useCallback(async () => {
+    try {
+      await ABP?.setupBackgroundUpdates?.(NOTIF);
+      const n = await ABP?.getStepsCountAsync?.();
+      if (typeof n === 'number') setState((s) => ({ ...s, todaySteps: n }));
+    } catch {
+      /* 무시 */
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -206,5 +241,5 @@ export function usePedometer(): PedometerState {
     return () => sub.remove();
   }, []);
 
-  return state;
+  return { ...state, requestBattery, openAutostart, restart };
 }

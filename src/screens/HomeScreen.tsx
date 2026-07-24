@@ -51,7 +51,9 @@ export function HomeScreen({ navigation }: Props) {
   const prog = useMemo(() => Math.min(1, steps / goal), [steps, goal]);
   const kcal = Math.round(steps * 0.0687);
   const km = (steps * 0.00064).toFixed(1);
-  const todayPct = Math.min(100, (todayEarned / DAILY_CAP) * 100);
+  // "오늘 모은 포인트"는 보너스까지 합쳐서 표시(200P 한도는 걸음·활동에만 적용, 보너스는 그 위에 얹힘).
+  const todayTotal = todayEarned + todayBonus;
+  const todayPct = Math.min(100, (todayTotal / DAILY_CAP) * 100);
   const claim = claimableP(s);
   const staked = pTotal(s);
   const asset = cash + cTotal(s);
@@ -114,6 +116,19 @@ export function HomeScreen({ navigation }: Props) {
                 <Text style={styles.devSimTxt}>걸음 +137 시뮬 (센서 없는 환경)</Text>
               </Pressable>
             )}
+            {ped.source === 'pedometer' && (
+              <View style={styles.devBtnRow}>
+                <Pressable onPress={() => ped.restart()} style={styles.devSimBtn}>
+                  <Text style={styles.devSimTxt}>서비스 재시작</Text>
+                </Pressable>
+                <Pressable onPress={() => ped.requestBattery()} style={styles.devSimBtn}>
+                  <Text style={styles.devSimTxt}>배터리 예외</Text>
+                </Pressable>
+                <Pressable onPress={() => ped.openAutostart()} style={styles.devSimBtn}>
+                  <Text style={styles.devSimTxt}>자동실행</Text>
+                </Pressable>
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -139,13 +154,13 @@ export function HomeScreen({ navigation }: Props) {
       <Pressable style={styles.today} onPress={() => soon('활동 기록')}>
         <View style={styles.todayHead}>
           <Text style={styles.todayLab}>오늘 모은 포인트</Text>
-          <Text style={styles.todayVal}>{fmtP(todayEarned)} / {fmtP(DAILY_CAP)}P</Text>
+          <Text style={styles.todayVal}>{fmtP(todayTotal)} / {fmtP(DAILY_CAP)}P</Text>
         </View>
         <View style={styles.pbarTrack}>
           <View style={[styles.pbarFill, { width: `${todayPct}%` }]} />
         </View>
         {todayBonus > 0 && (
-          <Text style={styles.bonusNote}>🎁 오늘 받은 보너스 +{fmtP(todayBonus)}P · 한도 별도</Text>
+          <Text style={styles.bonusNote}>걸음·활동 {fmtP(todayEarned)}P + 보너스 {fmtP(todayBonus)}P</Text>
         )}
       </Pressable>
 
@@ -238,6 +253,7 @@ const styles = StyleSheet.create({
   statLab: { fontSize: 11, fontWeight: '600', color: colors.muted, marginTop: 2 },
   devSteps: { marginTop: 12, alignSelf: 'stretch', backgroundColor: colors.surface2, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, alignItems: 'center', gap: 6 },
   devStepsTxt: { fontSize: 11.5, fontWeight: '700', color: colors.muted, textAlign: 'center' },
+  devBtnRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'center' },
   devSimBtn: { backgroundColor: colors.line, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
   devSimTxt: { fontSize: 11, fontWeight: '700', color: colors.ink },
 
@@ -258,7 +274,7 @@ const styles = StyleSheet.create({
   todayVal: { fontSize: 12, fontWeight: '800', color: colors.ink, fontVariant: ['tabular-nums'] },
   pbarTrack: { height: 8, backgroundColor: colors.line, borderRadius: radii.pill, overflow: 'hidden' },
   pbarFill: { height: '100%', backgroundColor: colors.reward, borderRadius: radii.pill },
-  bonusNote: { fontSize: 11.5, fontWeight: '800', color: '#B4740A', marginTop: 7 },
+  bonusNote: { fontSize: 11, fontWeight: '700', color: colors.muted, marginTop: 6 },
 
   assetStrip: { flexDirection: 'row', gap: 8, marginTop: 12 },
   asset: { flex: 1, backgroundColor: colors.surface, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14, ...cardShadow },
