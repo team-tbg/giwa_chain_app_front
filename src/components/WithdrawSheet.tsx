@@ -8,6 +8,7 @@ import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-nativ
 import { Button } from './ui';
 import { colors } from '../theme/theme';
 import { won } from '../state/AppState';
+import { groupDigits, onlyDigits } from '../lib/format';
 
 export function WithdrawSheet({ visible, cash, onClose, onConfirm }: {
   visible: boolean; cash: number; onClose: () => void; onConfirm: (amount: number) => void;
@@ -31,8 +32,8 @@ export function WithdrawSheet({ visible, cash, onClose, onConfirm }: {
         <Text style={styles.sub}>이자를 받고 있지 않은 금액만 출금할 수 있어요</Text>
         <View style={[styles.row, over && styles.rowErr]}>
           <TextInput
-            value={input}
-            onChangeText={(t) => setInput(t.replace(/[^0-9]/g, ''))}
+            value={groupDigits(input)}
+            onChangeText={(t) => setInput(onlyDigits(t))}
             keyboardType="number-pad"
             style={[styles.input, over && styles.inputErr]}
             placeholder="0"

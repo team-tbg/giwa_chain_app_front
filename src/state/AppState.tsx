@@ -4,8 +4,20 @@
  * 이자받기(저금)는 GIWA 디파이 이자 시뮬레이션(우리 재원). 확정 아님.
  * 불변 규칙: 가짜 잔고/숨은 차감 금지 — 여기 값은 그대로 화면에 되비추는 용도.
  */
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { logout as apiLogout } from '../api/auth';
+import { isApiConfigured } from '../api/config';
+import { tokenStore } from '../api/tokenStore';
+import * as pointsApi from '../api/points';
+import * as rewardsApi from '../api/rewards';
+import * as savingsApi from '../api/savings';
+
+/** 백엔드 연동 모드 여부 — API 주소가 있고 로그인 세션(토큰)이 있으면 서버가 진실의 원천.
+ *  없으면(데모/둘러보기) 로컬 목업으로 동작한다. */
+async function isOnline(): Promise<boolean> {
+  if (!isApiConfigured()) return false;
+  return Boolean(await tokenStore.getAccess());
+}
 
 export type Provider = 'google';
 export type User = { name: string; provider: Provider };
@@ -82,11 +94,12 @@ type AppActions = {
   login: (user: User) => void;
   logout: () => void;
   reset: () => void;
+  hydrate: () => Promise<void>; // 서버에서 잔액·저금 포지션을 받아 로컬 상태 동기화
 
   setSteps: (n: number) => void; // 측정된 걸음수 반영(프론트 관리, DB 저장 안 함)
-  claimSteps: () => void; // 걸어서 받을 포인트를 받기
-  stakePoints: (amt: number) => void; // 포인트 저금
-  unstakePoints: () => void; // 포인트 저금 그만 (원금+이자 → points)
+  claimSteps: () => Promise<void>; // 걸어서 받을 포인트를 받기 (온라인=서버, 오프라인=로컬)
+  stakePoints: (amt: number) => Promise<void>; // 포인트 저금
+  unstakePoints: () => Promise<void>; // 포인트 저금 그만 (원금+이자 → points)
   depositCash: (won: number) => void; // 원화 입금
   withdrawCash: (won: number) => void; // 원화 출금(내 계좌로)
   stakeCash: (amt: number) => void; // 원화 저금
@@ -96,8 +109,8 @@ type AppActions = {
   sellAsset: (kind: 'btc' | 'gold') => void; // 자산을 원화로 되팔기
   redeemReferral: (code: string) => void; // 추천인 코드 등록(+500P, 1회). 검증은 호출부에서.
 
-  checkAttendance: () => void; // 출석체크(+ATT_REWARD, 하루 1회, 한도 적용)
-  claimBonus: (amount: number) => void; // 오늘의 보너스 수령(한도 미적용). 금액은 호출부에서 추첨.
+  checkAttendance: () => Promise<void>; // 출석체크(하루 1회, 한도 적용)
+  claimBonus: () => Promise<number>; // 오늘의 보너스 수령(한도 미적용). 받은 금액을 반환.
   answerQuiz: (correct: boolean) => void; // 퀴즈 답변(정답이면 +QUIZ_REWARD, 한도 적용)
   togglePush: () => void; // 푸시 알림 토글
 };
@@ -139,8 +152,42 @@ const Ctx = createContext<(AppState & AppActions) | null>(null);
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AppState>(initial);
+  // 비동기 액션이 최신 상태를 스테일 없이 읽도록 하는 거울.
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
-  const login = useCallback((user: User) => setState((s) => ({ ...s, user })), []);
+  // 서버에서 잔액·저금 포지션을 받아 로컬 상태를 맞춘다(로그인 후·앱 진입 시). best-effort.
+  const hydrate = useCallback(async () => {
+    if (!(await isOnline())) return;
+    const [bal, pos] = await Promise.allSettled([
+      pointsApi.getBalance(),
+      savingsApi.getPositions(),
+    ]);
+    setState((s) => {
+      let ns = s;
+      if (bal.status === 'fulfilled') ns = { ...ns, points: bal.value };
+      if (pos.status === 'fulfilled') {
+        const p = pos.value.point;
+        ns = {
+          ...ns,
+          pStake: p.principalP,
+          pEarn: Number(p.accruedP) || 0,
+          pSince: p.startedAt ? Date.parse(p.startedAt) : Date.now(),
+        };
+      }
+      return ns;
+    });
+  }, []);
+
+  // 앱 진입 시 저장된 세션이 있으면 자동 동기화.
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
+
+  const login = useCallback((user: User) => {
+    setState((s) => ({ ...s, user }));
+    void hydrate(); // 로그인 직후 서버 값으로 맞춘다.
+  }, [hydrate]);
   const logout = useCallback(() => {
     void apiLogout(); // 서버 세션·저장 토큰 정리(실패해도 로컬은 초기화)
     setState((s) => ({ ...s, user: null }));
@@ -151,10 +198,30 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setState((s) => (n === s.steps ? s : { ...s, steps: n }));
   }, []);
 
-  const claimSteps = useCallback(() => {
+  const claimSteps = useCallback(async () => {
+    const s0 = stateRef.current;
+    if (s0.stepClaimed) return;
+    if (await isOnline()) {
+      // 서버가 걸음→포인트 환산·한도·하루1회를 판정. 이미 받았으면 409로 온다.
+      try {
+        const r = await rewardsApi.claimSteps(s0.steps);
+        setState((s) => ({
+          ...s, points: r.pointsAfter, todayEarned: r.todayEarnedP, stepClaimed: true,
+          history: r.grantedP > 0 ? pushLog(s.history, '걸음 포인트', r.grantedP, 'P') : s.history,
+        }));
+      } catch (e) {
+        if ((e as { code?: string }).code === 'ALREADY_CLAIMED') {
+          setState((s) => ({ ...s, stepClaimed: true }));
+          return;
+        }
+        throw e;
+      }
+      return;
+    }
+    // 로컬 폴백(데모)
     setState((s) => {
       if (s.stepClaimed) return s;
-      const claim = Math.min(WALK_MAX, Math.floor(s.steps / 100)); // 만보 최대 100P
+      const claim = Math.min(WALK_MAX, Math.floor(s.steps / 100));
       const got = Math.min(claim, capRoom(s));
       if (got <= 0) return { ...s, stepClaimed: true };
       return {
@@ -164,11 +231,21 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const stakePoints = useCallback((amt: number) => {
+  const stakePoints = useCallback(async (amt: number) => {
+    if (amt <= 0) return;
+    if (await isOnline()) {
+      // 서버가 포인트 차감 + 온체인 볼트 예치. 부족/최소미달/온체인불가면 throw.
+      const r = await savingsApi.stakePoints(amt);
+      setState((s) => ({
+        ...s, points: r.pointsAfter, pStake: r.point.principalP,
+        pEarn: Number(r.point.accruedP) || 0,
+        pSince: r.point.startedAt ? Date.parse(r.point.startedAt) : Date.now(),
+        history: pushLog(s.history, '포인트 저금', -amt, 'P'),
+      }));
+      return;
+    }
     setState((s) => {
-      if (amt <= 0) return s;
       const now = Date.now();
-      // 지금까지 붙은 이자를 baseline으로 확정하고, 늘어난 원금 기준으로 다시 시작.
       return {
         ...s, points: Math.max(0, s.points - amt), pStake: s.pStake + amt,
         pEarn: earnedP(s, now), pSince: now,
@@ -176,7 +253,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       };
     });
   }, []);
-  const unstakePoints = useCallback(() => {
+  const unstakePoints = useCallback(async () => {
+    if (await isOnline()) {
+      const r = await savingsApi.unstakePoints();
+      setState((s) => ({
+        ...s, points: r.pointsAfter, pStake: 0, pEarn: 0, pSince: Date.now(),
+        history: pushLog(s.history, '이자받기에서 빼기', r.creditedP, 'P'),
+      }));
+      return;
+    }
     setState((s) => {
       const now = Date.now();
       const t = s.pStake + earnedP(s, now);
@@ -242,7 +327,24 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
-  const checkAttendance = useCallback(() => {
+  const checkAttendance = useCallback(async () => {
+    if (stateRef.current.attToday) return;
+    if (await isOnline()) {
+      try {
+        const r = await rewardsApi.checkAttendance();
+        setState((s) => ({
+          ...s, attToday: true, streak: r.streak, points: r.pointsAfter, todayEarned: r.todayEarnedP,
+          history: r.grantedP > 0 ? pushLog(s.history, '출석체크', r.grantedP, 'P') : s.history,
+        }));
+      } catch (e) {
+        if ((e as { code?: string }).code === 'ALREADY_CHECKED_IN') {
+          setState((s) => ({ ...s, attToday: true }));
+          return;
+        }
+        throw e;
+      }
+      return;
+    }
     setState((s) => {
       if (s.attToday) return s;
       const g = Math.min(ATT_REWARD, capRoom(s));
@@ -253,12 +355,23 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const claimBonus = useCallback((amount: number) => {
-    // 보너스는 일일 한도 미적용(v10) — 총 포인트에 바로 반영 + 오늘 보너스 별도 집계(표시용).
+  // 보너스 금액은 서버가 추첨(온라인) — 받은 금액을 반환해 화면이 공개하도록 한다.
+  // 보너스는 일일 한도 미적용(v10). 오프라인이면 로컬 추첨.
+  const claimBonus = useCallback(async (): Promise<number> => {
+    if (await isOnline()) {
+      const r = await rewardsApi.claimBonus();
+      setState((s) => ({
+        ...s, points: r.pointsAfter, todayBonus: s.todayBonus + r.grantedP,
+        lastBonusAt: Date.now(), history: pushLog(s.history, '오늘의 보너스', r.grantedP, 'P'),
+      }));
+      return r.grantedP;
+    }
+    const amount = pickBonus();
     setState((s) => ({
       ...s, points: s.points + amount, todayBonus: s.todayBonus + amount,
       lastBonusAt: Date.now(), history: pushLog(s.history, '오늘의 보너스', amount, 'P'),
     }));
+    return amount;
   }, []);
 
   const answerQuiz = useCallback((correct: boolean) => {
@@ -279,11 +392,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(
     () => ({
-      ...state, login, logout, reset, setSteps, claimSteps, stakePoints, unstakePoints,
+      ...state, login, logout, reset, hydrate, setSteps, claimSteps, stakePoints, unstakePoints,
       depositCash, withdrawCash, stakeCash, unstakeCash, pointsToCash, buyAsset, sellAsset, redeemReferral,
       checkAttendance, claimBonus, answerQuiz, togglePush,
     }),
-    [state, login, logout, reset, setSteps, claimSteps, stakePoints, unstakePoints,
+    [state, login, logout, reset, hydrate, setSteps, claimSteps, stakePoints, unstakePoints,
       depositCash, withdrawCash, stakeCash, unstakeCash, pointsToCash, buyAsset, sellAsset, redeemReferral,
       checkAttendance, claimBonus, answerQuiz, togglePush],
   );

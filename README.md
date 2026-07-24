@@ -4,6 +4,21 @@
 
 > 배경·규칙·디자인은 [docs/](./docs/README.md) 참고. **불변 규칙**은 반드시 [docs/08-dev-context-primer.md](./docs/08-dev-context-primer.md)를 먼저 읽을 것.
 
+## 백엔드 연동
+
+`EXPO_PUBLIC_API_BASE_URL` 이 설정되고 로그인 세션(토큰)이 있으면 **서버가 진실의 원천**, 없으면(둘러보기/데모) 로컬 목업으로 동작한다(자동 폴백). API 계층은 [src/api/](./src/api/), 연동 지점은 [src/state/AppState.tsx](./src/state/AppState.tsx).
+
+| 기능 | 엔드포인트 | 상태 |
+|---|---|---|
+| 로그인 | `POST /auth/social` | ✅ |
+| 포인트 잔액·원장 | `GET /points/balance`·`/history` | ✅ (로그인 시 `hydrate`로 동기화) |
+| 걸음 적립 | `POST /steps/claim` | ✅ |
+| 출석체크 | `POST /rewards/attendance` | ✅ |
+| 오늘의 보너스 | `POST /rewards/bonus` | ✅ (금액은 서버 추첨) |
+| 이자받기(포인트 저금/해제) | `POST /savings/point/stake`·`/unstake` | ✅ (온체인 볼트 — 서버에 릴레이어 키 필요) |
+
+> 실기기 USB 테스트: 백엔드를 `127.0.0.1:8000`에 띄우고 `adb reverse tcp:8000 tcp:8000` 후 `.env` 를 `http://localhost:8000/v1` 로.
+
 ## 스택
 
 - **React Native + Expo** (SDK 57), TypeScript
