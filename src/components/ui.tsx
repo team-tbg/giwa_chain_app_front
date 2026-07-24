@@ -156,10 +156,17 @@ export function ProgressRing({
 }
 
 /**
- * "?" 도움말 — 웹은 마우스 올리면(hover), 모바일은 누르면 설명 말풍선이 뜬다. (v10 qm)
+ * "?" 도움말 말풍선의 내용 (v10 TIPS 구조 그대로): 굵은 제목 + 문단들 + 하단 '주의' 회색줄.
  */
-export function QMark({ tip, openLeft }: { tip: string; openLeft?: boolean }) {
+export type TipContent = { title: string; body: string[]; warn?: string };
+
+/**
+ * "?" 도움말 — 웹은 마우스 올리면(hover), 모바일은 누르면 설명 말풍선이 뜬다. (v10 qm)
+ * `tip` 은 v10 TIPS 구조(제목·문단·주의)를 그대로 받는다. 문자열도 하위호환으로 허용.
+ */
+export function QMark({ tip, openLeft }: { tip: TipContent | string; openLeft?: boolean }) {
   const [show, setShow] = React.useState(false);
+  const c: TipContent = typeof tip === 'string' ? { title: '', body: [tip] } : tip;
   return (
     <View style={styles.qmarkWrap}>
       <Pressable
@@ -172,7 +179,11 @@ export function QMark({ tip, openLeft }: { tip: string; openLeft?: boolean }) {
       </Pressable>
       {show && (
         <View style={[styles.qtip, openLeft ? styles.qtipLeft : styles.qtipRight]}>
-          <Text style={styles.qtipTxt}>{tip}</Text>
+          {c.title ? <Text style={styles.qtipTitle}>{c.title}</Text> : null}
+          {c.body.map((p, i) => (
+            <Text key={i} style={[styles.qtipTxt, (i > 0 || !!c.title) && styles.qtipP]}>{p}</Text>
+          ))}
+          {c.warn ? <Text style={styles.qtipWarn}>{c.warn}</Text> : null}
         </View>
       )}
     </View>
@@ -184,10 +195,13 @@ const styles = StyleSheet.create({
   qmarkWrap: { position: 'relative' },
   qmark: { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   qmarkTxt: { color: '#fff', fontSize: 11, fontWeight: '900' },
-  qtip: { position: 'absolute', bottom: 26, width: 240, backgroundColor: '#16202E', borderRadius: 14, padding: 14, zIndex: 100 },
+  qtip: { position: 'absolute', bottom: 26, width: 264, backgroundColor: '#16202E', borderRadius: 14, padding: 14, zIndex: 100 },
   qtipRight: { left: -4 },
   qtipLeft: { right: -4 },
+  qtipTitle: { color: '#fff', fontSize: 13, fontWeight: '800', lineHeight: 19 },
   qtipTxt: { color: '#fff', fontSize: 12, fontWeight: '600', lineHeight: 18 },
+  qtipP: { marginTop: 8 },
+  qtipWarn: { color: '#C9D2E0', fontSize: 12, fontWeight: '600', lineHeight: 18, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.2)' },
   btn: {
     borderRadius: radii.md,
     alignItems: 'center',

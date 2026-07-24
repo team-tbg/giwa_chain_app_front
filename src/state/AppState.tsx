@@ -56,12 +56,14 @@ type AppState = {
   todayEarned: number; // 오늘 모은 포인트(P) — 일일 한도(200P) 대비 (걸음·출석·퀴즈·게임·영상)
   todayBonus: number; // 오늘 받은 보너스(P) — 한도 미포함, 표시용 별도 집계
 
-  pStake: number; // 이자받기에 저금한 포인트(P)
-  pEarn: number; // 저금 포인트에 붙은 이자(P)
+  pStake: number; // 이자받기에 저금한 포인트 원금(P)
+  pEarn: number; // pSince 시점까지 '확정'된 이자 baseline(P). 그 이후분은 읽을 때 계산.
+  pSince: number; // 현재 원금 기준 이자 누적 시작 시각(ms). 백엔드도 이 값만 저장하면 됨.
 
   cash: number; // 원화 자산 — 저금 안 한 돈(원)
-  cStake: number; // 이자받기에 저금한 원화(원)
-  cEarn: number; // 저금 원화에 붙은 이자(원)
+  cStake: number; // 이자받기에 저금한 원화 원금(원)
+  cEarn: number; // cSince 시점까지 '확정'된 이자 baseline(원)
+  cSince: number; // 현재 원금 기준 이자 누적 시작 시각(ms)
 
   hold: { btc: number; gold: number }; // 보유 수량
 
@@ -92,7 +94,6 @@ type AppActions = {
   pointsToCash: (p: number, won: number) => void; // 포인트를 현금으로
   buyAsset: (kind: 'btc' | 'gold', p: number, qty: number) => void; // 포인트로 매수
   sellAsset: (kind: 'btc' | 'gold') => void; // 자산을 원화로 되팔기
-  tickGrowth: () => void; // 이자 1틱 증가(시뮬레이션)
   redeemReferral: (code: string) => void; // 추천인 코드 등록(+500P, 1회). 검증은 호출부에서.
 
   checkAttendance: () => void; // 출석체크(+ATT_REWARD, 하루 1회, 한도 적용)
@@ -114,10 +115,12 @@ const initial: AppState = {
 
   pStake: 0,
   pEarn: 0,
+  pSince: 0,
 
   cash: 0,
   cStake: 0,
   cEarn: 0,
+  cSince: 0,
 
   hold: { btc: 0, gold: 0 },
 
@@ -162,15 +165,22 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const stakePoints = useCallback((amt: number) => {
-    setState((s) => (amt <= 0 ? s : {
-      ...s, points: Math.max(0, s.points - amt), pStake: s.pStake + amt,
-      history: pushLog(s.history, '포인트 저금', -amt, 'P'),
-    }));
+    setState((s) => {
+      if (amt <= 0) return s;
+      const now = Date.now();
+      // 지금까지 붙은 이자를 baseline으로 확정하고, 늘어난 원금 기준으로 다시 시작.
+      return {
+        ...s, points: Math.max(0, s.points - amt), pStake: s.pStake + amt,
+        pEarn: earnedP(s, now), pSince: now,
+        history: pushLog(s.history, '포인트 저금', -amt, 'P'),
+      };
+    });
   }, []);
   const unstakePoints = useCallback(() => {
     setState((s) => {
-      const t = s.pStake + s.pEarn;
-      return t <= 0 ? s : { ...s, points: s.points + t, pStake: 0, pEarn: 0, history: pushLog(s.history, '이자받기에서 빼기', t, 'P') };
+      const now = Date.now();
+      const t = s.pStake + earnedP(s, now);
+      return t <= 0 ? s : { ...s, points: s.points + t, pStake: 0, pEarn: 0, pSince: now, history: pushLog(s.history, '이자받기에서 빼기', t, 'P') };
     });
   }, []);
 
@@ -184,15 +194,21 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
   const stakeCash = useCallback((amt: number) => {
-    setState((s) => (amt <= 0 ? s : {
-      ...s, cash: Math.max(0, s.cash - amt), cStake: s.cStake + amt,
-      history: pushLog(s.history, '자산 저금', -amt, 'KRW'),
-    }));
+    setState((s) => {
+      if (amt <= 0) return s;
+      const now = Date.now();
+      return {
+        ...s, cash: Math.max(0, s.cash - amt), cStake: s.cStake + amt,
+        cEarn: earnedC(s, now), cSince: now,
+        history: pushLog(s.history, '자산 저금', -amt, 'KRW'),
+      };
+    });
   }, []);
   const unstakeCash = useCallback(() => {
     setState((s) => {
-      const t = s.cStake + s.cEarn;
-      return t <= 0 ? s : { ...s, cash: s.cash + t, cStake: 0, cEarn: 0, history: pushLog(s.history, '자산 저금 해제', t, 'KRW') };
+      const now = Date.now();
+      const t = s.cStake + earnedC(s, now);
+      return t <= 0 ? s : { ...s, cash: s.cash + t, cStake: 0, cEarn: 0, cSince: now, history: pushLog(s.history, '자산 저금 해제', t, 'KRW') };
     });
   }, []);
 
@@ -261,22 +277,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const togglePush = useCallback(() => setState((s) => ({ ...s, push: !s.push })), []);
 
-  const tickGrowth = useCallback(() => {
-    setState((s) => ({
-      ...s,
-      pEarn: s.pStake > 0 ? s.pEarn + s.pStake * 0.0000004 + 0.02 : s.pEarn,
-      cEarn: s.cStake > 0 ? s.cEarn + s.cStake * 0.0000004 + 1 : s.cEarn,
-    }));
-  }, []);
-
   const value = useMemo(
     () => ({
       ...state, login, logout, reset, setSteps, claimSteps, stakePoints, unstakePoints,
-      depositCash, withdrawCash, stakeCash, unstakeCash, pointsToCash, buyAsset, sellAsset, tickGrowth, redeemReferral,
+      depositCash, withdrawCash, stakeCash, unstakeCash, pointsToCash, buyAsset, sellAsset, redeemReferral,
       checkAttendance, claimBonus, answerQuiz, togglePush,
     }),
     [state, login, logout, reset, setSteps, claimSteps, stakePoints, unstakePoints,
-      depositCash, withdrawCash, stakeCash, unstakeCash, pointsToCash, buyAsset, sellAsset, tickGrowth, redeemReferral,
+      depositCash, withdrawCash, stakeCash, unstakeCash, pointsToCash, buyAsset, sellAsset, redeemReferral,
       checkAttendance, claimBonus, answerQuiz, togglePush],
   );
 
@@ -292,8 +300,20 @@ export function useAppState() {
 /** 파생값 헬퍼 */
 export const claimableP = (s: { steps: number; stepClaimed: boolean }) =>
   s.stepClaimed ? 0 : Math.min(WALK_MAX, Math.floor(s.steps / 100));
-export const pTotal = (s: { pStake: number; pEarn: number }) => s.pStake + s.pEarn;
-export const cTotal = (s: { cStake: number; cEarn: number }) => s.cStake + s.cEarn;
+
+// ── 이자: 저장하지 않고 '읽는 순간' 계산한다 ────────────────────────────
+// 이자 = 확정 baseline + 원금 × 연이율 × (지금 - 시작시각).
+// 백엔드는 원금(pStake)·시작시각(pSince)·baseline(pEarn)만 저장하면 되고,
+// 프론트는 1초마다 서버로 쏘지 않는다. 화면 숫자는 now만 바꿔 다시 그린다.
+export const RATE = 0.05; // 연 이자율(시뮬)
+const YEAR_SEC = 365 * 24 * 3600;
+export const earnedP = (s: { pStake: number; pEarn: number; pSince: number }, now: number = Date.now()) =>
+  s.pEarn + (s.pStake > 0 ? (s.pStake * RATE * Math.max(0, now - s.pSince)) / 1000 / YEAR_SEC : 0);
+export const earnedC = (s: { cStake: number; cEarn: number; cSince: number }, now: number = Date.now()) =>
+  s.cEarn + (s.cStake > 0 ? (s.cStake * RATE * Math.max(0, now - s.cSince)) / 1000 / YEAR_SEC : 0);
+
+export const pTotal = (s: { pStake: number; pEarn: number; pSince: number }, now?: number) => s.pStake + earnedP(s, now);
+export const cTotal = (s: { cStake: number; cEarn: number; cSince: number }, now?: number) => s.cStake + earnedC(s, now);
 export const netWorth = (s: AppState) =>
   s.points + pTotal(s) + s.cash + cTotal(s) + s.hold.btc * PRICE.btc + s.hold.gold * PRICE.gold;
 
